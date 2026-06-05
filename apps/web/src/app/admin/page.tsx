@@ -8,11 +8,13 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
-import { ADMIN_WALLET, ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
+import { adminWalletConfigured } from "@/lib/admin";
+import { ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
 import { DAILY_REWARD_POLICY } from "@/lib/economy";
-import { shortAddress } from "@/lib/utils";
 
 export default function AdminPage() {
+  const adminConfigured = adminWalletConfigured();
+
   return (
     <main className="noise min-h-screen">
       <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-5">
@@ -58,9 +60,14 @@ export default function AdminPage() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">
-                Admin wallet
+                Admin treasury wallet
               </p>
-              <p className="font-mono text-sm font-black">{shortAddress(ADMIN_WALLET)}</p>
+              <p className="font-mono text-sm font-black">
+                {adminConfigured ? "Configured server-side" : "Missing env"}
+              </p>
+              <p className="mt-1 text-xs font-medium text-muted">
+                Address is intentionally hidden from the UI.
+              </p>
             </div>
           </div>
         </Card>

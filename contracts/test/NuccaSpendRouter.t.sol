@@ -53,4 +53,26 @@ contract NuccaSpendRouterTest {
         require(aiAmount == 15 ether, "ai");
         require(rewardsAmount == 15 ether, "rewards");
     }
+
+    function testSpendToTreasuryWithApproval() public {
+        MockToken token = new MockToken();
+        NuccaSpendRouter router =
+            new NuccaSpendRouter(
+                IERC20(address(token)),
+                new MockPermit2(),
+                address(11),
+                address(12),
+                address(13),
+                address(14)
+            );
+
+        token.mint(address(this), 100_000 ether);
+        token.approve(address(router), 100_000 ether);
+        router.spendToTreasuryWithApproval(100_000 ether, "clan_creation");
+
+        require(token.balanceOf(address(11)) == 100_000 ether, "treasury");
+        require(token.balanceOf(address(12)) == 0, "league");
+        require(token.balanceOf(address(13)) == 0, "ai");
+        require(token.balanceOf(address(14)) == 0, "rewards");
+    }
 }

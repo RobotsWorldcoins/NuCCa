@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ADMIN_WALLET, ECONOMY_SPLIT } from "@/lib/constants";
+import { adminWalletConfigured, isAdminWallet } from "@/lib/admin";
+import { ECONOMY_SPLIT } from "@/lib/constants";
 import { DAILY_REWARD_POLICY } from "@/lib/economy";
 import { readSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -14,7 +15,7 @@ const economyPatchSchema = z.object({
 export async function GET() {
   return NextResponse.json({
     ok: true,
-    adminWallet: ADMIN_WALLET,
+    adminWalletConfigured: adminWalletConfigured(),
     split: ECONOMY_SPLIT,
     rewardPolicy: DAILY_REWARD_POLICY,
   });
@@ -22,7 +23,8 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   const session = await readSession();
-  if (session?.walletAddress.toLowerCase() !== ADMIN_WALLET.toLowerCase()) {
+  const actorWallet = session?.walletAddress;
+  if (!isAdminWallet(actorWallet)) {
     return NextResponse.json(
       { ok: false, message: "Admin WalletAuth session required." },
       { status: 403 },
@@ -46,7 +48,7 @@ export async function PATCH(request: Request) {
   }
 
   const { error } = await supabase.from("economy_audit_logs").insert({
-    actor_wallet: session.walletAddress,
+    actor_wallet: actorWallet,
     event_type: "economy_config_patch",
     payload: body.data,
   });

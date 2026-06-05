@@ -1,5 +1,6 @@
 export type CreatorStyleSlot = "frame" | "badge" | "backdrop" | "introFx" | "title";
 export type OutfitSlot = "hair" | "jacket" | "top" | "pants" | "shoes" | "accessory" | "aura";
+export type SampleType = "kick" | "bass" | "lead" | "vocal" | "fx";
 export type MusicGenre =
   | "rock"
   | "pop"
@@ -38,9 +39,9 @@ export type Sample = {
   name: string;
   bpm: number;
   key: string;
-  type: "drums" | "bass" | "melody" | "vocal" | "fx";
+  type: SampleType;
   unlockLevel: number;
-  license: "in-app";
+  license: "in-app" | "user-provided";
 };
 
 export type BattleRule = {
@@ -55,7 +56,13 @@ export type Clan = {
   style: string;
   focus: string;
   monthlyPoints: number;
+  members: number;
+  maxMembers: number;
+  creationCostNucca: number;
 };
+
+export const CLAN_CREATION_COST_NUCCA = 100_000;
+export const CLAN_MAX_MEMBERS = 3;
 
 export const CREATOR_STYLE_ITEMS: CreatorStyleItem[] = [
   {
@@ -210,44 +217,63 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
   },
 ];
 
-export const SAMPLE_LIBRARY: Sample[] = [
-  {
-    id: "kick-nova-90",
-    name: "Nova Kick",
-    bpm: 90,
-    key: "C",
-    type: "drums",
-    unlockLevel: 1,
-    license: "in-app",
-  },
-  {
-    id: "bass-orbit-90",
-    name: "Orbit Bass",
-    bpm: 90,
-    key: "C minor",
-    type: "bass",
-    unlockLevel: 1,
-    license: "in-app",
-  },
-  {
-    id: "lead-genesis-90",
-    name: "Genesis Lead",
-    bpm: 90,
-    key: "C minor",
-    type: "melody",
-    unlockLevel: 2,
-    license: "in-app",
-  },
-  {
-    id: "vox-spark-90",
-    name: "Spark Vox",
-    bpm: 90,
-    key: "C minor",
-    type: "vocal",
-    unlockLevel: 3,
-    license: "in-app",
-  },
+export const SAMPLE_TYPE_LABELS: Record<SampleType, string> = {
+  kick: "Kicks",
+  bass: "Bass",
+  lead: "Leads",
+  vocal: "Vox",
+  fx: "FX",
+};
+
+const SAMPLE_KEYS = [
+  "C",
+  "C minor",
+  "D minor",
+  "E minor",
+  "F",
+  "G",
+  "A minor",
+  "B minor",
+] as const;
+const SAMPLE_BPMS = [80, 90, 96, 100, 110, 120, 128, 140, 150, 160] as const;
+const SAMPLE_SERIES: {
+  type: SampleType;
+  count: number;
+  prefix: string;
+  unlockBase: number;
+}[] = [
+  { type: "kick", count: 100, prefix: "Genesis Kick", unlockBase: 1 },
+  { type: "bass", count: 100, prefix: "Orbit Bass", unlockBase: 1 },
+  { type: "lead", count: 200, prefix: "Neon Lead", unlockBase: 2 },
+  { type: "vocal", count: 200, prefix: "Creator Vox", unlockBase: 3 },
+  { type: "fx", count: 100, prefix: "Portal FX", unlockBase: 1 },
 ];
+
+export const SAMPLE_LIBRARY: Sample[] = SAMPLE_SERIES.flatMap(
+  (series, seriesIndex) =>
+    Array.from({ length: series.count }, (_, offset) => {
+      const number = offset + 1;
+      const padded = String(number).padStart(3, "0");
+
+      return {
+        id: `${series.type}-${padded}`,
+        name: `${series.prefix} ${padded}`,
+        bpm: SAMPLE_BPMS[(offset + seriesIndex) % SAMPLE_BPMS.length],
+        key: SAMPLE_KEYS[(offset + seriesIndex) % SAMPLE_KEYS.length],
+        type: series.type,
+        unlockLevel: Math.min(10, series.unlockBase + Math.floor(offset / 40)),
+        license: "in-app",
+      };
+    }),
+);
+
+export const SAMPLE_LIBRARY_COUNTS = SAMPLE_LIBRARY.reduce(
+  (counts, sample) => {
+    counts[sample.type] += 1;
+    return counts;
+  },
+  { kick: 0, bass: 0, lead: 0, vocal: 0, fx: 0 } as Record<SampleType, number>,
+);
 
 export const CLANS: Clan[] = [
   {
@@ -256,6 +282,9 @@ export const CLANS: Clan[] = [
     style: "Premium pop, hooks, clean visuals",
     focus: "Monthly league consistency",
     monthlyPoints: 12840,
+    members: 3,
+    maxMembers: CLAN_MAX_MEMBERS,
+    creationCostNucca: CLAN_CREATION_COST_NUCCA,
   },
   {
     id: "neon-syndicate",
@@ -263,6 +292,9 @@ export const CLANS: Clan[] = [
     style: "Trap, cyber beats, aggressive drops",
     focus: "Fast battle wins",
     monthlyPoints: 11920,
+    members: 2,
+    maxMembers: CLAN_MAX_MEMBERS,
+    creationCostNucca: CLAN_CREATION_COST_NUCCA,
   },
   {
     id: "shadow-records",
@@ -270,6 +302,9 @@ export const CLANS: Clan[] = [
     style: "Dark vocals, cinematic loops",
     focus: "Crew 3v3 strategy",
     monthlyPoints: 10550,
+    members: 3,
+    maxMembers: CLAN_MAX_MEMBERS,
+    creationCostNucca: CLAN_CREATION_COST_NUCCA,
   },
   {
     id: "eternal-frequency",
@@ -277,6 +312,9 @@ export const CLANS: Clan[] = [
     style: "Melodic, emotional, viral choruses",
     focus: "Fan voting power",
     monthlyPoints: 9820,
+    members: 1,
+    maxMembers: CLAN_MAX_MEMBERS,
+    creationCostNucca: CLAN_CREATION_COST_NUCCA,
   },
 ];
 

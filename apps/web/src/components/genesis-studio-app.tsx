@@ -10,8 +10,11 @@ import {
   Gift,
   Headphones,
   ImageIcon,
+  LockKeyhole,
   Medal,
   Orbit,
+  Plus,
+  Search,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -36,13 +39,18 @@ import {
 import { ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
 import {
   BATTLE_RULES,
+  CLAN_CREATION_COST_NUCCA,
+  CLAN_MAX_MEMBERS,
   CLANS,
   CREATOR_OUTFIT_ITEMS,
   CREATOR_STYLE_ITEMS,
   MUSIC_GENRES,
   MONTHLY_RANKING_RULES,
   SAMPLE_LIBRARY,
+  SAMPLE_LIBRARY_COUNTS,
+  SAMPLE_TYPE_LABELS,
   type MusicGenre,
+  type SampleType,
 } from "@/lib/game";
 import { SWAP_ROUTES, type SwapRouteId } from "@/lib/swap";
 import { formatNucca, formatUsd, shortAddress } from "@/lib/utils";
@@ -72,6 +80,7 @@ type ReferralState = {
 };
 
 type TabKey = "home" | "claim" | "music" | "arena" | "clans";
+const DEV_MODE_ENABLED = process.env.NODE_ENV !== "production";
 
 export function GenesisStudioApp() {
   const [wallet, setWallet] = useState<WalletState>({
@@ -87,6 +96,12 @@ export function GenesisStudioApp() {
   const [builderStatus, setBuilderStatus] = useState("No ranked track yet");
   const [battleStatus, setBattleStatus] = useState("No active battle");
   const [lastCompositionId, setLastCompositionId] = useState<string | null>(null);
+  const [builtTrack, setBuiltTrack] = useState<{
+    id: string;
+    title: string;
+    manifestHash: string | null;
+    sampleIds: string[];
+  } | null>(null);
   const [selectedBattleMode, setSelectedBattleMode] =
     useState<BattleModeId>("genesis-duel");
   const [selectedBattleFormat, setSelectedBattleFormat] =
@@ -95,6 +110,21 @@ export function GenesisStudioApp() {
   const [selectedGenre, setSelectedGenre] = useState<MusicGenre>("techno");
   const [selectedSwapRoute, setSelectedSwapRoute] =
     useState<SwapRouteId>("nucca-wld");
+  const [selectedSampleType, setSelectedSampleType] =
+    useState<SampleType>("kick");
+  const [selectedSampleIds, setSelectedSampleIds] = useState<string[]>([
+    "kick-001",
+    "bass-001",
+    "lead-001",
+    "vocal-001",
+  ]);
+  const [clanSearch, setClanSearch] = useState("");
+  const [clanName, setClanName] = useState("");
+  const [clanStyle, setClanStyle] = useState("Techno / trap / futuristic");
+  const [clanFocus, setClanFocus] = useState("Crew 3v3 battles and monthly ranking");
+  const [clanStatus, setClanStatus] = useState(
+    "Create a clan only after the 100,000 NUCCA treasury payment is confirmed.",
+  );
 
   const referralCode = useMemo(() => {
     if (!wallet.address) return "Connect wallet";
@@ -128,6 +158,19 @@ export function GenesisStudioApp() {
   const currentSwapRoute =
     SWAP_ROUTES.find((route) => route.id === selectedSwapRoute) ??
     SWAP_ROUTES[0];
+  const visibleSamples = SAMPLE_LIBRARY.filter(
+    (sample) => sample.type === selectedSampleType,
+  ).slice(0, 18);
+  const selectedSamples = SAMPLE_LIBRARY.filter((sample) =>
+    selectedSampleIds.includes(sample.id),
+  );
+  const filteredClans = CLANS.filter((clan) => {
+    const query = clanSearch.trim().toLowerCase();
+    if (!query) return true;
+    return [clan.name, clan.style, clan.focus].some((value) =>
+      value.toLowerCase().includes(query),
+    );
+  });
 
   useEffect(() => {
     let active = true;
@@ -177,6 +220,16 @@ export function GenesisStudioApp() {
       status: verified.ok
         ? "WalletAuth verified"
         : "Wallet connected, server not configured",
+    });
+  }
+
+  async function startDevSession() {
+    setWallet((current) => ({ ...current, status: "Creating local preview" }));
+    const response = await fetch("/api/auth/dev-session", { method: "POST" });
+    const json = await response.json();
+    setWallet({
+      address: json.walletAddress ?? null,
+      status: json.ok ? "Local preview session" : json.message,
     });
   }
 
@@ -255,13 +308,18 @@ export function GenesisStudioApp() {
   }
 
   async function createBuilderTrack() {
+    if (selectedSampleIds.length < 2) {
+      setBuilderStatus("Select at least two samples");
+      return;
+    }
+
     setBuilderStatus("Building provenance manifest");
     const response = await fetch("/api/music/compositions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title: "Genesis Battle Loop",
-        sampleIds: SAMPLE_LIBRARY.slice(0, 3).map((sample) => sample.id),
+        sampleIds: selectedSampleIds,
         arrangement: "intro:8|drop:16|hook:8|outro:4",
       }),
     });
@@ -271,12 +329,48 @@ export function GenesisStudioApp() {
       return;
     }
 
-    setLastCompositionId(json.composition.id);
+    const composition = json.composition;
+    const manifestHash = composition.manifestHash ?? composition.manifest_hash ?? null;
+    const sampleIds = composition.sampleIds ?? composition.sample_ids ?? selectedSampleIds;
+    setLastCompositionId(composition.id);
+    setBuiltTrack({
+      id: composition.id,
+      title: composition.title ?? "Genesis Battle Loop",
+      manifestHash,
+      sampleIds,
+    });
     setBuilderStatus(
-      json.composition.manifestHash
-        ? `Ranked hash ${json.composition.manifestHash.slice(0, 10)}...`
+      manifestHash
+        ? `Ranked hash ${manifestHash.slice(0, 10)}...`
         : "Ranked composition created",
     );
+  }
+
+  function toggleSample(sampleId: string) {
+    setSelectedSampleIds((current) => {
+      if (current.includes(sampleId)) {
+        if (current.length <= 2) return current;
+        return current.filter((id) => id !== sampleId);
+      }
+
+      if (current.length >= 12) return current;
+      return [...current, sampleId];
+    });
+  }
+
+  async function createClan() {
+    setClanStatus("Preparing clan creation");
+    const response = await fetch("/api/clans/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: clanName,
+        style: clanStyle,
+        focus: clanFocus,
+      }),
+    });
+    const json = await response.json();
+    setClanStatus(json.message ?? "Clan request checked");
   }
 
   async function createBattle() {
@@ -376,11 +470,16 @@ export function GenesisStudioApp() {
             <StatusRow icon={<ShieldCheck size={18} />} label="World ID" value={worldStatus} />
             <StatusRow icon={<Users size={18} />} label="Referral code" value={referralCode} />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className={DEV_MODE_ENABLED ? "mt-4 grid grid-cols-3 gap-2" : "mt-4 grid grid-cols-2 gap-2"}>
             <Button onClick={connectWallet}>Connect</Button>
             <Button onClick={verifyHumanSession} variant="secondary">
               Verify Human
             </Button>
+            {DEV_MODE_ENABLED ? (
+              <Button onClick={startDevSession} variant="secondary">
+                Demo
+              </Button>
+            ) : null}
           </div>
         </Card>
 
@@ -486,29 +585,95 @@ export function GenesisStudioApp() {
             </div>
             <IconBubble icon={<Headphones size={20} />} />
           </div>
-          <div className="mt-4 grid gap-2">
-            {SAMPLE_LIBRARY.slice(0, 4).map((sample) => (
-              <div
-                className="flex items-center justify-between rounded-2xl border border-line bg-white/58 p-3"
-                key={sample.id}
+          <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+            {(Object.keys(SAMPLE_TYPE_LABELS) as SampleType[]).map((type) => (
+              <button
+                className={
+                  selectedSampleType === type
+                    ? "rounded-2xl bg-foreground px-2 py-2 text-white shadow-lg"
+                    : "rounded-2xl border border-line bg-white/60 px-2 py-2 text-muted"
+                }
+                key={type}
+                onClick={() => setSelectedSampleType(type)}
+                type="button"
               >
-                <div>
-                  <p className="text-sm font-black">{sample.name}</p>
-                  <p className="text-xs text-muted">
-                    {sample.type} / {sample.bpm} BPM / {sample.key}
-                  </p>
-                </div>
-                <span className="rounded-full bg-cyan-50 px-2 py-1 text-[10px] font-black uppercase text-accent-2">
-                  L{sample.unlockLevel}
-                </span>
-              </div>
+                <p className="truncate text-[10px] font-black">
+                  {SAMPLE_TYPE_LABELS[type]}
+                </p>
+                <p className="mt-1 font-mono text-[10px] font-black">
+                  {SAMPLE_LIBRARY_COUNTS[type]}
+                </p>
+              </button>
             ))}
+          </div>
+          <div className="mt-4 rounded-2xl border border-line bg-white/60 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+                Selected samples
+              </p>
+              <span className="font-mono text-xs font-black">
+                {selectedSampleIds.length}/12
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedSamples.map((sample) => (
+                <button
+                  className="rounded-full border border-line bg-white px-3 py-1 text-[11px] font-black text-foreground"
+                  key={sample.id}
+                  onClick={() => toggleSample(sample.id)}
+                  type="button"
+                >
+                  {sample.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1">
+            {visibleSamples.map((sample) => {
+              const selected = selectedSampleIds.includes(sample.id);
+              return (
+                <button
+                  className={
+                    selected
+                      ? "flex items-center justify-between rounded-2xl border border-foreground bg-foreground p-3 text-left text-white shadow-lg"
+                      : "flex items-center justify-between rounded-2xl border border-line bg-white/58 p-3 text-left shadow-sm"
+                  }
+                  key={sample.id}
+                  onClick={() => toggleSample(sample.id)}
+                  type="button"
+                >
+                  <div>
+                    <p className="text-sm font-black">{sample.name}</p>
+                    <p className={selected ? "text-xs text-white/70" : "text-xs text-muted"}>
+                      {sample.bpm} BPM / {sample.key} / {sample.license}
+                    </p>
+                  </div>
+                  <span className={selected ? "rounded-full bg-white/15 px-2 py-1 text-[10px] font-black uppercase" : "rounded-full bg-cyan-50 px-2 py-1 text-[10px] font-black uppercase text-accent-2"}>
+                    L{sample.unlockLevel}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <div className="mt-4 rounded-2xl border border-line bg-white/60 p-3">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
               Provenance status
             </p>
             <p className="mt-1 text-sm font-bold text-muted">{builderStatus}</p>
+            {builtTrack ? (
+              <div className="mt-3 rounded-2xl border border-white bg-white/70 p-3">
+                <p className="text-sm font-black">{builtTrack.title}</p>
+                <p className="mt-1 font-mono text-[11px] text-muted">
+                  ID: {builtTrack.id.slice(0, 14)}...
+                </p>
+                <p className="mt-1 font-mono text-[11px] text-muted">
+                  Hash: {builtTrack.manifestHash?.slice(0, 18) ?? "pending"}...
+                </p>
+                <p className="mt-2 text-xs font-bold text-accent">
+                  This is the track used when you open a battle in Arena.
+                </p>
+              </div>
+            ) : null}
           </div>
           <Button className="mt-4 w-full" onClick={createBuilderTrack}>
             Build Ranked Track
@@ -517,35 +682,104 @@ export function GenesisStudioApp() {
         ) : null}
 
         {activeTab === "clans" ? (
+          <>
+        <Card className="holo-border">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle>Create Clan</CardTitle>
+              <p className="mt-1 text-sm text-muted">
+                Clan ownership costs 100,000 NUCCA and is paid to the admin treasury.
+              </p>
+            </div>
+            <IconBubble icon={<LockKeyhole size={20} />} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <Metric label="Create cost" value={formatNucca(CLAN_CREATION_COST_NUCCA)} />
+            <Metric label="Members" value={`${CLAN_MAX_MEMBERS} max`} />
+            <Metric label="Battle team" value="3v3" />
+          </div>
+          <div className="mt-4 grid gap-2">
+            <input
+              className="rounded-2xl border border-line bg-white/70 px-4 py-3 text-sm font-bold outline-none"
+              maxLength={32}
+              onChange={(event) => setClanName(event.target.value)}
+              placeholder="Clan name"
+              value={clanName}
+            />
+            <input
+              className="rounded-2xl border border-line bg-white/70 px-4 py-3 text-sm font-bold outline-none"
+              maxLength={80}
+              onChange={(event) => setClanStyle(event.target.value)}
+              placeholder="Music style"
+              value={clanStyle}
+            />
+            <input
+              className="rounded-2xl border border-line bg-white/70 px-4 py-3 text-sm font-bold outline-none"
+              maxLength={120}
+              onChange={(event) => setClanFocus(event.target.value)}
+              placeholder="Clan focus"
+              value={clanFocus}
+            />
+          </div>
+          <Button className="mt-4 w-full" onClick={createClan}>
+            <Plus size={16} /> Prepare 100k NUCCA Clan
+          </Button>
+          <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-medium leading-5 text-muted">
+            {clanStatus}
+          </p>
+        </Card>
+
         <Card>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle>Clans</CardTitle>
+              <CardTitle>Find Clans</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                Join a label, build songs with your crew, and fight for the monthly league.
+                Search labels, styles, and battle focus. Each clan is capped at three members.
               </p>
             </div>
             <IconBubble icon={<Crown size={20} />} />
           </div>
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-line bg-white/70 px-3 py-2">
+            <Search className="text-muted" size={18} />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-sm font-bold outline-none"
+              onChange={(event) => setClanSearch(event.target.value)}
+              placeholder="Search clans"
+              value={clanSearch}
+            />
+          </div>
           <div className="mt-4 grid gap-2">
-            {CLANS.map((clan, index) => (
+            {filteredClans.map((clan, index) => (
               <div
-                className="flex items-center justify-between rounded-2xl border border-line bg-white/58 p-3"
+                className="rounded-2xl border border-line bg-white/58 p-3"
                 key={clan.id}
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-black">
-                    #{index + 1} {clan.name}
-                  </p>
-                  <p className="truncate text-xs text-muted">{clan.style}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black">
+                      #{index + 1} {clan.name}
+                    </p>
+                    <p className="truncate text-xs text-muted">{clan.style}</p>
+                  </div>
+                  <span className="font-mono text-xs font-black">
+                    {formatNucca(clan.monthlyPoints)} pts
+                  </span>
                 </div>
-                <span className="font-mono text-xs font-black">
-                  {formatNucca(clan.monthlyPoints)} pts
-                </span>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <Metric label="Members" value={`${clan.members}/${clan.maxMembers}`} />
+                  <Metric label="Cost" value={formatNucca(clan.creationCostNucca)} />
+                  <Metric label="Focus" value="3v3" />
+                </div>
               </div>
             ))}
+            {filteredClans.length === 0 ? (
+              <p className="rounded-2xl border border-line bg-white/58 p-3 text-sm font-bold text-muted">
+                No clans found.
+              </p>
+            ) : null}
           </div>
         </Card>
+          </>
         ) : null}
 
         {activeTab === "arena" ? (
@@ -559,6 +793,16 @@ export function GenesisStudioApp() {
               </p>
             </div>
             <IconBubble icon={<Swords size={20} />} />
+          </div>
+          <div className="mt-4 rounded-2xl border border-line bg-white/60 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Battle track
+            </p>
+            <p className="mt-1 text-sm font-bold text-muted">
+              {builtTrack
+                ? `${builtTrack.title} / ${builtTrack.sampleIds.length} samples`
+                : "Create an in-app track in Music Builder first."}
+            </p>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             {BATTLE_FORMATS.map((format) => {
@@ -872,7 +1116,7 @@ export function GenesisStudioApp() {
         </Card>
         ) : null}
 
-        {activeTab === "arena" ? (
+        {activeTab === "home" ? (
         <Card>
           <div className="flex items-center justify-between">
             <CardTitle>Economy Engine</CardTitle>

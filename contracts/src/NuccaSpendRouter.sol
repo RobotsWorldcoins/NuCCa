@@ -85,6 +85,24 @@ contract NuccaSpendRouter {
         emit Spent(msg.sender, amount, sink);
     }
 
+    function spendToTreasuryWithApproval(uint256 amount, string calldata sink) external {
+        require(!paused, "paused");
+        require(amount > 0, "amount required");
+
+        require(nucca.transferFrom(msg.sender, treasury, amount), "treasury transfer failed");
+
+        emit Spent(msg.sender, amount, sink);
+    }
+
+    function spendToTreasuryWithPermit2(uint160 amount, string calldata sink) external {
+        require(!paused, "paused");
+        require(amount > 0, "amount required");
+
+        permit2.transferFrom(msg.sender, treasury, amount, address(nucca));
+
+        emit Spent(msg.sender, amount, sink);
+    }
+
     function split(uint256 amount)
         public
         view

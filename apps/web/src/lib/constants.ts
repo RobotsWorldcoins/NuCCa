@@ -20,9 +20,6 @@ export const UNISWAP_SWAP_ROUTER_02_WORLDCHAIN =
 export const UNISWAP_QUOTER_V2_WORLDCHAIN =
   "0x10158D43e6cc414deE1Bd1eB0EfC6a5cBCfF244c";
 
-export const ADMIN_WALLET =
-  "0xd81ca2d5e0138d73e3a953a0fc7eee2e0e186969";
-
 export const TOKEN_FACTS = {
   name: "NUCCA",
   burned: 5_000_000,
