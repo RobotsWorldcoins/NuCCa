@@ -18,7 +18,6 @@ import {
   Trophy,
   Users,
   Wallet,
-  Zap,
 } from "lucide-react";
 import { MiniKit } from "@worldcoin/minikit-js";
 import { MiniKitBoot } from "@/components/mini-kit-boot";
@@ -72,11 +71,14 @@ type ReferralState = {
   rules: string[];
 };
 
+type TabKey = "home" | "claim" | "music" | "arena" | "clans";
+
 export function GenesisStudioApp() {
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     status: "Disconnected",
   });
+  const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [market, setMarket] = useState<MarketState | null>(null);
   const [referral, setReferral] = useState<ReferralState | null>(null);
   const [claimStatus, setClaimStatus] = useState("Ready");
@@ -357,6 +359,8 @@ export function GenesisStudioApp() {
           </div>
         </section>
 
+        {activeTab === "home" ? (
+          <>
         <Card className="holo-border">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -468,7 +472,10 @@ export function GenesisStudioApp() {
             </p>
           </div>
         </Card>
+          </>
+        ) : null}
 
+        {activeTab === "music" ? (
         <Card className="holo-border">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -507,7 +514,9 @@ export function GenesisStudioApp() {
             Build Ranked Track
           </Button>
         </Card>
+        ) : null}
 
+        {activeTab === "clans" ? (
         <Card>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -537,7 +546,10 @@ export function GenesisStudioApp() {
             ))}
           </div>
         </Card>
+        ) : null}
 
+        {activeTab === "arena" ? (
+          <>
         <Card>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -666,7 +678,11 @@ export function GenesisStudioApp() {
             ))}
           </div>
         </Card>
+          </>
+        ) : null}
 
+        {activeTab === "home" ? (
+          <>
         <Card className="overflow-hidden p-0">
           <div className="flex gap-4 p-4">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-3xl border border-white bg-white shadow-xl shadow-cyan-200/50">
@@ -797,8 +813,11 @@ export function GenesisStudioApp() {
             </p>
           </div>
         </Card>
+          </>
+        ) : null}
 
-        <div className="grid grid-cols-2 gap-3">
+        {activeTab === "claim" ? (
+        <div className="grid gap-3">
           <Card className="min-h-40">
             <div className="flex items-center justify-between">
               <CardTitle>Daily Claim</CardTitle>
@@ -812,19 +831,10 @@ export function GenesisStudioApp() {
               Claim
             </Button>
           </Card>
-
-          <Card className="min-h-40">
-            <div className="flex items-center justify-between">
-              <CardTitle>Revenue Split</CardTitle>
-              <Zap className="text-accent" size={20} />
-            </div>
-            <p className="mt-4 text-4xl font-black">{ECONOMY_SPLIT.treasury}%</p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              Admin treasury share from premium spends and battle fees.
-            </p>
-          </Card>
         </div>
+        ) : null}
 
+        {activeTab === "music" ? (
         <Card>
           <div className="flex items-start justify-between">
             <div>
@@ -860,7 +870,9 @@ export function GenesisStudioApp() {
           </div>
           <p className="mt-3 text-xs font-bold text-accent">{aiStatus}</p>
         </Card>
+        ) : null}
 
+        {activeTab === "arena" ? (
         <Card>
           <div className="flex items-center justify-between">
             <CardTitle>Economy Engine</CardTitle>
@@ -873,13 +885,43 @@ export function GenesisStudioApp() {
             <Metric label="Rewards" value={`${ECONOMY_SPLIT.rewardsReserve}%`} />
           </div>
         </Card>
+        ) : null}
 
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/70 bg-white/84 px-4 py-2 shadow-[0_-16px_40px_rgba(49,61,94,0.12)] backdrop-blur-2xl">
-          <div className="mx-auto grid max-w-md grid-cols-4 text-center text-[11px] font-bold text-muted">
-            <Tab active icon={<Sparkles size={18} />} label="Studio" />
-            <Tab icon={<Gift size={18} />} label="Claim" />
-            <Tab icon={<Users size={18} />} label="Clans" />
-            <Tab icon={<Trophy size={18} />} label="Leagues" />
+        <nav
+          aria-label="NuCCa sections"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-white/70 bg-white/84 px-3 py-2 shadow-[0_-16px_40px_rgba(49,61,94,0.12)] backdrop-blur-2xl"
+        >
+          <div className="mx-auto grid max-w-md grid-cols-5 gap-1 text-center text-[10px] font-bold text-muted">
+            <Tab
+              active={activeTab === "home"}
+              icon={<Sparkles size={18} />}
+              label="Home"
+              onClick={() => setActiveTab("home")}
+            />
+            <Tab
+              active={activeTab === "claim"}
+              icon={<Gift size={18} />}
+              label="Claim"
+              onClick={() => setActiveTab("claim")}
+            />
+            <Tab
+              active={activeTab === "music"}
+              icon={<Headphones size={18} />}
+              label="Music"
+              onClick={() => setActiveTab("music")}
+            />
+            <Tab
+              active={activeTab === "arena"}
+              icon={<Trophy size={18} />}
+              label="Arena"
+              onClick={() => setActiveTab("arena")}
+            />
+            <Tab
+              active={activeTab === "clans"}
+              icon={<Users size={18} />}
+              label="Clans"
+              onClick={() => setActiveTab("clans")}
+            />
           </div>
         </nav>
       </div>
@@ -1017,21 +1059,26 @@ function Tab({
   active,
   icon,
   label,
+  onClick,
 }: {
   active?: boolean;
   icon: ReactNode;
   label: string;
+  onClick: () => void;
 }) {
   return (
     <button
+      aria-current={active ? "page" : undefined}
       className={
         active
-          ? "flex flex-col items-center gap-1 rounded-2xl bg-foreground px-2 py-1.5 text-white shadow-lg"
-          : "flex flex-col items-center gap-1 rounded-2xl px-2 py-1.5 text-muted"
+          ? "flex min-w-0 flex-col items-center gap-1 rounded-2xl bg-foreground px-1.5 py-1.5 text-white shadow-lg"
+          : "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-1.5 py-1.5 text-muted"
       }
+      onClick={onClick}
+      type="button"
     >
       {icon}
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
     </button>
   );
 }
