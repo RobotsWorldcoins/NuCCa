@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
-import { ADMIN_WALLET, BURN_POLICY, ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
+import { ADMIN_WALLET, ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
 import { DAILY_REWARD_POLICY } from "@/lib/economy";
 import { shortAddress } from "@/lib/utils";
 
@@ -89,9 +89,6 @@ export default function AdminPage() {
             <Metric label="AI" value={`${ECONOMY_SPLIT.aiReserve}%`} />
             <Metric label="Rewards" value={`${ECONOMY_SPLIT.rewardsReserve}%`} />
           </div>
-          <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-medium leading-5 text-muted">
-            {BURN_POLICY.publicRule}
-          </p>
         </Card>
 
         <Card>

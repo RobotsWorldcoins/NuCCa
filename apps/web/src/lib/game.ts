@@ -1,4 +1,18 @@
 export type CreatorStyleSlot = "frame" | "badge" | "backdrop" | "introFx" | "title";
+export type OutfitSlot = "hair" | "jacket" | "top" | "pants" | "shoes" | "accessory" | "aura";
+export type MusicGenre =
+  | "rock"
+  | "pop"
+  | "techno"
+  | "commercial"
+  | "classical"
+  | "gospel"
+  | "oriental"
+  | "trap"
+  | "latin"
+  | "afrobeat"
+  | "jazz"
+  | "reggaeton";
 
 export type CreatorStyleItem = {
   id: string;
@@ -6,6 +20,16 @@ export type CreatorStyleItem = {
   slot: CreatorStyleSlot;
   rarity: "common" | "rare" | "epic" | "legendary";
   cosmeticEffect: string;
+  priceNucca: number;
+};
+
+export type CreatorOutfitItem = {
+  id: string;
+  name: string;
+  genre: MusicGenre;
+  slot: OutfitSlot;
+  rarity: "common" | "rare" | "epic" | "legendary";
+  visual: string;
   priceNucca: number;
 };
 
@@ -57,6 +81,132 @@ export const CREATOR_STYLE_ITEMS: CreatorStyleItem[] = [
     rarity: "legendary",
     cosmeticEffect: "Premium profile background and battle entrance scene.",
     priceNucca: 420,
+  },
+];
+
+export const MUSIC_GENRES: { id: MusicGenre; label: string; mood: string }[] = [
+  { id: "rock", label: "Rock", mood: "leather, metal, stage fire" },
+  { id: "pop", label: "Pop", mood: "clean shine, bright color, star polish" },
+  { id: "techno", label: "Techno", mood: "neon, chrome, cyber motion" },
+  { id: "commercial", label: "Commercial", mood: "premium, brand-ready, clean camera" },
+  { id: "classical", label: "Classical", mood: "orchestra, gold trim, formal stage" },
+  { id: "gospel", label: "Gospel", mood: "white/gold, choir, light aura" },
+  { id: "oriental", label: "Oriental", mood: "silk, red/gold, cinematic motion" },
+  { id: "trap", label: "Trap", mood: "street luxury, dark shine, heavy bass" },
+  { id: "latin", label: "Latin", mood: "warm color, dance energy, percussion" },
+  { id: "afrobeat", label: "Afrobeat", mood: "pattern, rhythm, festival color" },
+  { id: "jazz", label: "Jazz", mood: "suit, smoke club, late-night gold" },
+  { id: "reggaeton", label: "Reggaeton", mood: "clubwear, sunglasses, summer neon" },
+];
+
+export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
+  {
+    id: "rock-legend-jacket",
+    name: "Rock Legend Jacket",
+    genre: "rock",
+    slot: "jacket",
+    rarity: "epic",
+    visual: "black leather jacket with orange chrome studs",
+    priceNucca: 180,
+  },
+  {
+    id: "pop-star-glow",
+    name: "Pop Star Glow",
+    genre: "pop",
+    slot: "aura",
+    rarity: "rare",
+    visual: "soft white spotlight and glossy stage sparkle",
+    priceNucca: 120,
+  },
+  {
+    id: "techno-neon-visor",
+    name: "Techno Neon Visor",
+    genre: "techno",
+    slot: "accessory",
+    rarity: "epic",
+    visual: "cyan visor with animated equalizer reflection",
+    priceNucca: 210,
+  },
+  {
+    id: "commercial-chrome-coat",
+    name: "Commercial Chrome Coat",
+    genre: "commercial",
+    slot: "jacket",
+    rarity: "rare",
+    visual: "clean silver coat for premium brand drops",
+    priceNucca: 160,
+  },
+  {
+    id: "classical-conductor-tailcoat",
+    name: "Conductor Tailcoat",
+    genre: "classical",
+    slot: "jacket",
+    rarity: "epic",
+    visual: "black formal tailcoat with gold baton accent",
+    priceNucca: 220,
+  },
+  {
+    id: "gospel-light-robe",
+    name: "Gospel Light Robe",
+    genre: "gospel",
+    slot: "top",
+    rarity: "legendary",
+    visual: "white and gold robe with luminous choir halo",
+    priceNucca: 360,
+  },
+  {
+    id: "oriental-silk-dragon",
+    name: "Silk Dragon Set",
+    genre: "oriental",
+    slot: "top",
+    rarity: "legendary",
+    visual: "red silk stage layer with gold dragon trim",
+    priceNucca: 390,
+  },
+  {
+    id: "trap-shadow-chain",
+    name: "Trap Shadow Chain",
+    genre: "trap",
+    slot: "accessory",
+    rarity: "rare",
+    visual: "heavy black-gold chain and dark bass pulse",
+    priceNucca: 140,
+  },
+  {
+    id: "latin-solar-shirt",
+    name: "Latin Solar Shirt",
+    genre: "latin",
+    slot: "top",
+    rarity: "rare",
+    visual: "orange dance shirt with animated percussion glow",
+    priceNucca: 130,
+  },
+  {
+    id: "afrobeat-pattern-kicks",
+    name: "Afrobeat Pattern Kicks",
+    genre: "afrobeat",
+    slot: "shoes",
+    rarity: "epic",
+    visual: "festival pattern sneakers with rhythm particles",
+    priceNucca: 190,
+  },
+  {
+    id: "jazz-midnight-suit",
+    name: "Jazz Midnight Suit",
+    genre: "jazz",
+    slot: "jacket",
+    rarity: "epic",
+    visual: "midnight suit with gold lapel and saxophone pin",
+    priceNucca: 240,
+  },
+  {
+    id: "reggaeton-club-glasses",
+    name: "Reggaeton Club Glasses",
+    genre: "reggaeton",
+    slot: "accessory",
+    rarity: "rare",
+    visual: "summer club sunglasses with pink-blue reflections",
+    priceNucca: 125,
   },
 ];
 

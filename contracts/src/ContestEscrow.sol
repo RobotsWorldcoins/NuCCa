@@ -20,8 +20,8 @@ contract ContestEscrow {
     address public admin;
     address public treasury;
     address public monthlyLeagueReserve;
-    uint16 public platformBps = 1800;
-    uint16 public monthlyLeagueReserveBps = 700;
+    uint16 public platformBps = 1000;
+    uint16 public monthlyLeagueReserveBps = 1000;
     uint256 public nextContestId = 1;
     mapping(uint256 => Contest) public contests;
 

@@ -16,6 +16,25 @@ create table if not exists user_creator_style_items (
   unique(wallet_address, item_id)
 );
 
+create table if not exists creator_outfit_items (
+  id text primary key,
+  name text not null,
+  genre text not null,
+  slot text not null,
+  rarity text not null,
+  visual text not null,
+  price_nucca numeric(30, 18) not null default 0,
+  active boolean not null default true
+);
+
+create table if not exists user_creator_outfit_items (
+  id uuid primary key default gen_random_uuid(),
+  wallet_address text not null,
+  item_id text not null references creator_outfit_items(id),
+  acquired_at timestamptz not null default now(),
+  unique(wallet_address, item_id)
+);
+
 create table if not exists sample_library (
   id text primary key,
   name text not null,

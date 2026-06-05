@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { ADMIN_WALLET, BURN_POLICY, ECONOMY_SPLIT } from "@/lib/constants";
+import { ADMIN_WALLET, ECONOMY_SPLIT } from "@/lib/constants";
 import { DAILY_REWARD_POLICY } from "@/lib/economy";
 import { readSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -16,7 +16,6 @@ export async function GET() {
     ok: true,
     adminWallet: ADMIN_WALLET,
     split: ECONOMY_SPLIT,
-    burnPolicy: BURN_POLICY,
     rewardPolicy: DAILY_REWARD_POLICY,
   });
 }

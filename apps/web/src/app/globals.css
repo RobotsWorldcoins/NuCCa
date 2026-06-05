@@ -80,3 +80,23 @@ textarea {
   pointer-events: none;
   position: absolute;
 }
+
+.performer-dance {
+  animation: performer-dance 2.8s ease-in-out infinite;
+  transform-origin: 50% 78%;
+}
+
+@keyframes performer-dance {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+
+  35% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+
+  70% {
+    transform: translateY(-2px) rotate(-2deg);
+  }
+}

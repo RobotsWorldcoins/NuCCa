@@ -38,7 +38,7 @@ contract MockEscrowToken {
 contract ContestEscrowTest {
     function testFeeBpsDefault() public {
         ContestEscrow escrow = new ContestEscrow(IERC20Escrow(address(new MockEscrowToken())), address(11), address(12));
-        require(escrow.platformBps() == 1800, "platform");
-        require(escrow.monthlyLeagueReserveBps() == 700, "league");
+        require(escrow.platformBps() == 1000, "platform");
+        require(escrow.monthlyLeagueReserveBps() == 1000, "league");
     }
 }

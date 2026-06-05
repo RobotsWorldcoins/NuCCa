@@ -44,6 +44,7 @@ Safe MVP:
 - No maximum creator-funded contest pool in the current config.
 - House/admin commission is disclosed.
 - Monthly ranking reserve is disclosed.
+- Battle fees use equal admin and monthly ranking splits: 10% admin, 10% monthly reserve, 80% winner pool.
 - No automatic app burn is promised. Manual burns can be reported only after the admin executes them on-chain.
 - Creator winner can receive the capped creator-funded prize pool.
 - Spectators can back a creator with non-transferable Hype and earn XP/cosmetics/status only.

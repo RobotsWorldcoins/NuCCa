@@ -6,8 +6,8 @@ const scenarios = [
     avgVotes: 12,
     creatorEntry: 500,
     entrants: 2,
-    platformPct: 18,
-    leaguePct: 7,
+    platformPct: 10,
+    leaguePct: 10,
   },
   {
     mode: "Genesis Duel 48h crew 3v3 minimum",
@@ -16,8 +16,8 @@ const scenarios = [
     avgVotes: 24,
     creatorEntry: 500,
     entrants: 6,
-    platformPct: 18,
-    leaguePct: 7,
+    platformPct: 10,
+    leaguePct: 10,
   },
   {
     mode: "Flash Battle 24h solo minimum",
@@ -26,8 +26,8 @@ const scenarios = [
     avgVotes: 18,
     creatorEntry: 250,
     entrants: 2,
-    platformPct: 15,
-    leaguePct: 5,
+    platformPct: 10,
+    leaguePct: 10,
   },
   {
     mode: "Flash Battle 24h crew 3v3 high pool",
@@ -36,8 +36,8 @@ const scenarios = [
     avgVotes: 36,
     creatorEntry: 1000,
     entrants: 6,
-    platformPct: 15,
-    leaguePct: 5,
+    platformPct: 10,
+    leaguePct: 10,
   },
 ];
 

@@ -48,8 +48,8 @@ contract NuccaSpendRouterTest {
         (uint256 treasuryAmount, uint256 leagueAmount, uint256 aiAmount, uint256 rewardsAmount) =
             router.split(100 ether);
 
-        require(treasuryAmount == 45 ether, "treasury");
-        require(leagueAmount == 25 ether, "league");
+        require(treasuryAmount == 35 ether, "treasury");
+        require(leagueAmount == 35 ether, "league");
         require(aiAmount == 15 ether, "ai");
         require(rewardsAmount == 15 ether, "rewards");
     }

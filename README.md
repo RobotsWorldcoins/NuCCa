@@ -20,6 +20,7 @@ Production-oriented World App Mini App for the NUCCA creator economy.
 - Dexscreener/Uniswap price data is display and risk input, not a blind payout oracle.
 - No automatic burn promises inside the app. Manual burns are external admin actions and need public tx proof.
 - Battles support solo 1v1 and crew 3v3 creator-funded contests; spectator NUCCA betting stays disabled.
+- Swap Studio exposes real Uniswap WorldChain routes for NUCCA/WLD and routed NUCCA/USDC. Native MiniKit execution requires Developer Portal allowlisting before it is enabled.
 
 ## Run
 

@@ -3,8 +3,10 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  ArrowLeftRight,
   Bot,
   Crown,
+  ExternalLink,
   Gift,
   Headphones,
   ImageIcon,
@@ -36,10 +38,14 @@ import { ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
 import {
   BATTLE_RULES,
   CLANS,
+  CREATOR_OUTFIT_ITEMS,
   CREATOR_STYLE_ITEMS,
+  MUSIC_GENRES,
   MONTHLY_RANKING_RULES,
   SAMPLE_LIBRARY,
+  type MusicGenre,
 } from "@/lib/game";
+import { SWAP_ROUTES, type SwapRouteId } from "@/lib/swap";
 import { formatNucca, formatUsd, shortAddress } from "@/lib/utils";
 
 type WalletState = {
@@ -84,6 +90,9 @@ export function GenesisStudioApp() {
   const [selectedBattleFormat, setSelectedBattleFormat] =
     useState<BattleFormatId>("solo-1v1");
   const [customContestNucca, setCustomContestNucca] = useState(1000);
+  const [selectedGenre, setSelectedGenre] = useState<MusicGenre>("techno");
+  const [selectedSwapRoute, setSelectedSwapRoute] =
+    useState<SwapRouteId>("nucca-wld");
 
   const referralCode = useMemo(() => {
     if (!wallet.address) return "Connect wallet";
@@ -109,6 +118,14 @@ export function GenesisStudioApp() {
     normalizedContestNucca,
     currentBattleFormat,
   );
+  const currentGenre =
+    MUSIC_GENRES.find((genre) => genre.id === selectedGenre) ?? MUSIC_GENRES[0];
+  const genreOutfits = CREATOR_OUTFIT_ITEMS.filter(
+    (item) => item.genre === selectedGenre,
+  );
+  const currentSwapRoute =
+    SWAP_ROUTES.find((route) => route.id === selectedSwapRoute) ??
+    SWAP_ROUTES[0];
 
   useEffect(() => {
     let active = true;
@@ -336,7 +353,7 @@ export function GenesisStudioApp() {
           <div className="grid grid-cols-3 gap-2 border-t border-line bg-white/75 p-3 text-center">
             <Metric label="Holders" value={formatNucca(TOKEN_FACTS.holders)} />
             <Metric label="Locked" value={`${TOKEN_FACTS.pufLockedPercent}%`} />
-            <Metric label="Clans" value={`${CLANS.length}`} />
+            <Metric label="Burned" value={`${TOKEN_FACTS.burnedPercent}%`} />
           </div>
         </section>
 
@@ -368,45 +385,72 @@ export function GenesisStudioApp() {
             <div>
               <CardTitle>Creator Identity</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                Use a visual creator image with cosmetic frames, badges, stages,
-                and battle entrances.
+                Upload your image, dress your performer, and make the music screen feel alive.
               </p>
             </div>
             <IconBubble icon={<ImageIcon size={20} />} />
           </div>
-          <div className="mt-4 overflow-hidden rounded-3xl border border-line bg-white/60">
-            <div className="relative h-36">
-              <Image
-                alt="Creator identity background"
-                className="object-cover"
-                fill
-                sizes="448px"
-                src="/brand/nucca-genesis-studio.png"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent" />
+          <div className="mt-4 grid gap-3 rounded-3xl border border-line bg-white/60 p-3">
+            <div className="grid grid-cols-[1fr_7rem] gap-3">
+              <div className="relative min-h-52 overflow-hidden rounded-[28px] border border-line bg-gradient-to-b from-white via-cyan-50 to-orange-50">
+                <div className="absolute inset-x-8 top-8 h-20 rounded-full bg-cyan-200/50 blur-2xl" />
+                <div className="absolute inset-x-12 bottom-8 h-16 rounded-full bg-orange-200/60 blur-2xl" />
+                <NuccaPerformer genre={selectedGenre} />
+                <div className="absolute bottom-3 left-3 rounded-full border border-white/80 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-accent shadow-sm">
+                  {currentGenre.label} performer
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <div className="relative overflow-hidden rounded-3xl border-4 border-white bg-white shadow-xl shadow-orange-200/60">
+                  <Image
+                    alt="Creator profile image"
+                    className="aspect-square object-cover"
+                    height={160}
+                    sizes="112px"
+                    src="/brand/nucca-token.jpeg"
+                    width={160}
+                  />
+                </div>
+                <Button size="sm" variant="secondary">
+                  Upload
+                </Button>
+              </div>
             </div>
-            <div className="-mt-14 flex items-end gap-4 p-4 pt-0">
-              <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[32px] border-4 border-white bg-white shadow-xl shadow-orange-200/60">
-                <Image
-                  alt="Creator profile image"
-                  className="object-cover"
-                  fill
-                  sizes="112px"
-                  src="/brand/nucca-token.jpeg"
-                />
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+                Outfit genre
+              </p>
+              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                {MUSIC_GENRES.map((genre) => (
+                  <button
+                    className={
+                      selectedGenre === genre.id
+                        ? "shrink-0 rounded-full bg-foreground px-3 py-2 text-xs font-black text-white shadow-lg"
+                        : "shrink-0 rounded-full border border-line bg-white/75 px-3 py-2 text-xs font-black text-muted"
+                    }
+                    key={genre.id}
+                    onClick={() => setSelectedGenre(genre.id)}
+                    type="button"
+                  >
+                    {genre.label}
+                  </button>
+                ))}
               </div>
-              <div className="relative min-w-0 flex-1 pb-2">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
-                  Level 1
-                </p>
-                <p className="truncate text-xl font-black">Genesis Creator</p>
-                <p className="mt-1 text-xs text-muted">
-                  Cosmetic identity only. No hidden power boost.
-                </p>
-              </div>
+              <p className="mt-2 text-xs leading-5 text-muted">
+                {currentGenre.mood}. Built as lightweight layered animation for mobile; true 3D only after optimized assets.
+              </p>
             </div>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
+            {genreOutfits.map((item) => (
+              <div className="rounded-2xl border border-line bg-white/58 p-2" key={item.id}>
+                <p className="truncate text-xs font-black">{item.name}</p>
+                <p className="mt-1 text-[10px] uppercase text-muted">{item.slot}</p>
+                <p className="mt-2 font-mono text-xs font-black">{item.priceNucca} NUCCA</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
             {CREATOR_STYLE_ITEMS.map((item) => (
               <div className="rounded-2xl border border-line bg-white/58 p-2" key={item.id}>
                 <p className="truncate text-xs font-black">{item.name}</p>
@@ -414,6 +458,14 @@ export function GenesisStudioApp() {
                 <p className="mt-2 font-mono text-xs font-black">{item.priceNucca} NUCCA</p>
               </div>
             ))}
+          </div>
+          <div className="mt-3 rounded-2xl border border-line bg-white/60 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Why it matters
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              During playback and battles, the performer can dance, sing, and show the creator outfit instead of leaving the app as text-only music cards.
+            </p>
           </div>
         </Card>
 
@@ -656,6 +708,72 @@ export function GenesisStudioApp() {
         <Card className="holo-border">
           <div className="flex items-start justify-between gap-3">
             <div>
+              <CardTitle>Swap Studio</CardTitle>
+              <p className="mt-1 text-sm text-muted">
+                Real Uniswap WorldChain routes for NUCCA/WLD and routed NUCCA/USDC.
+              </p>
+            </div>
+            <IconBubble icon={<ArrowLeftRight size={20} />} />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {SWAP_ROUTES.map((route) => (
+              <button
+                className={
+                  selectedSwapRoute === route.id
+                    ? "rounded-2xl border border-foreground bg-foreground p-3 text-left text-white shadow-lg"
+                    : "rounded-2xl border border-line bg-white/58 p-3 text-left shadow-sm"
+                }
+                key={route.id}
+                onClick={() => setSelectedSwapRoute(route.id)}
+                type="button"
+              >
+                <p className="text-sm font-black">{route.label}</p>
+                <p className={selectedSwapRoute === route.id ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-muted"}>
+                  {route.routeType === "direct_pool" ? "Direct pool" : "Routed swap"}
+                </p>
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 rounded-2xl border border-line bg-white/60 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Active route
+            </p>
+            <p className="mt-1 text-sm font-black">{currentSwapRoute.pathLabel}</p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              {currentSwapRoute.liquidityNote}
+            </p>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground px-3 py-3 text-sm font-black text-white shadow-lg"
+              href={currentSwapRoute.uniswapUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Uniswap <ExternalLink size={15} />
+            </a>
+            <a
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line bg-white/70 px-3 py-3 text-sm font-black text-foreground shadow-sm"
+              href={currentSwapRoute.dexscreenerUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Chart <ExternalLink size={15} />
+            </a>
+          </div>
+          <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50/80 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-warning">
+              Native in-app swap
+            </p>
+            <p className="mt-1 text-xs leading-5 text-warning">
+              To execute swaps directly with MiniKit, the World Developer Portal must allowlist NUCCA, WLD, USDC, Permit2, and the Uniswap router. Until then, Uniswap is the real execution surface.
+            </p>
+          </div>
+        </Card>
+
+        <Card className="holo-border">
+          <div className="flex items-start justify-between gap-3">
+            <div>
               <CardTitle>Aggressive Referrals</CardTitle>
               <p className="mt-1 text-sm text-muted">
                 Max 100 friends with transparent monthly halving.
@@ -766,6 +884,91 @@ export function GenesisStudioApp() {
         </nav>
       </div>
     </main>
+  );
+}
+
+function NuccaPerformer({ genre }: { genre: MusicGenre }) {
+  const palette: Record<MusicGenre, { jacket: string; aura: string; accent: string }> = {
+    rock: {
+      jacket: "from-slate-950 to-zinc-700",
+      aura: "bg-orange-300/50",
+      accent: "bg-orange-500",
+    },
+    pop: {
+      jacket: "from-pink-400 to-orange-300",
+      aura: "bg-pink-200/60",
+      accent: "bg-pink-500",
+    },
+    techno: {
+      jacket: "from-cyan-500 to-slate-900",
+      aura: "bg-cyan-300/60",
+      accent: "bg-cyan-400",
+    },
+    commercial: {
+      jacket: "from-white to-slate-300",
+      aura: "bg-slate-200/70",
+      accent: "bg-slate-400",
+    },
+    classical: {
+      jacket: "from-slate-950 to-amber-800",
+      aura: "bg-amber-200/60",
+      accent: "bg-amber-500",
+    },
+    gospel: {
+      jacket: "from-white to-yellow-200",
+      aura: "bg-yellow-200/70",
+      accent: "bg-yellow-500",
+    },
+    oriental: {
+      jacket: "from-red-600 to-yellow-500",
+      aura: "bg-red-200/60",
+      accent: "bg-red-500",
+    },
+    trap: {
+      jacket: "from-slate-950 to-purple-900",
+      aura: "bg-purple-300/50",
+      accent: "bg-purple-500",
+    },
+    latin: {
+      jacket: "from-orange-500 to-red-500",
+      aura: "bg-orange-200/70",
+      accent: "bg-red-500",
+    },
+    afrobeat: {
+      jacket: "from-emerald-500 to-yellow-500",
+      aura: "bg-emerald-200/70",
+      accent: "bg-emerald-500",
+    },
+    jazz: {
+      jacket: "from-slate-900 to-yellow-900",
+      aura: "bg-yellow-200/50",
+      accent: "bg-yellow-600",
+    },
+    reggaeton: {
+      jacket: "from-fuchsia-500 to-cyan-400",
+      aura: "bg-fuchsia-200/60",
+      accent: "bg-fuchsia-500",
+    },
+  };
+  const style = palette[genre];
+
+  return (
+    <div className="performer-dance absolute inset-0 flex items-center justify-center pt-8">
+      <div className={`absolute h-36 w-36 rounded-full blur-2xl ${style.aura}`} />
+      <div className="relative h-44 w-32">
+        <div className="absolute left-1/2 top-0 h-16 w-16 -translate-x-1/2 rounded-full border border-orange-100 bg-gradient-to-b from-orange-100 to-orange-200 shadow-lg" />
+        <div className="absolute left-1/2 top-7 h-4 w-14 -translate-x-1/2 rounded-full bg-slate-950 shadow-sm" />
+        <div className={`absolute left-1/2 top-16 h-20 w-24 -translate-x-1/2 rounded-t-[34px] rounded-b-2xl bg-gradient-to-br ${style.jacket} shadow-xl`} />
+        <div className="absolute left-2 top-20 h-14 w-5 -rotate-12 rounded-full bg-slate-800 shadow-md" />
+        <div className="absolute right-2 top-20 h-14 w-5 rotate-12 rounded-full bg-slate-800 shadow-md" />
+        <div className={`absolute left-1/2 top-[5.75rem] h-3 w-16 -translate-x-1/2 rounded-full ${style.accent}`} />
+        <div className="absolute bottom-6 left-9 h-12 w-5 rounded-full bg-slate-900 shadow-md" />
+        <div className="absolute bottom-6 right-9 h-12 w-5 rounded-full bg-slate-900 shadow-md" />
+        <div className="absolute bottom-3 left-7 h-4 w-9 rounded-full bg-white shadow-md" />
+        <div className="absolute bottom-3 right-7 h-4 w-9 rounded-full bg-white shadow-md" />
+        <div className="absolute -bottom-1 left-1/2 h-3 w-28 -translate-x-1/2 rounded-full bg-slate-900/10 blur-sm" />
+      </div>
+    </div>
   );
 }
 

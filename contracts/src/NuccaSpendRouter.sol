@@ -19,8 +19,8 @@ contract NuccaSpendRouter {
     address public admin;
     bool public paused;
 
-    uint16 public treasuryBps = 4500;
-    uint16 public monthlyLeagueReserveBps = 2500;
+    uint16 public treasuryBps = 3500;
+    uint16 public monthlyLeagueReserveBps = 3500;
     uint16 public aiReserveBps = 1500;
     uint16 public rewardsBps = 1500;
 

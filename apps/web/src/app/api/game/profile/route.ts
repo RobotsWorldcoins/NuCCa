@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { CREATOR_STYLE_ITEMS, levelForXp, SAMPLE_LIBRARY } from "@/lib/game";
+import {
+  CREATOR_OUTFIT_ITEMS,
+  CREATOR_STYLE_ITEMS,
+  MUSIC_GENRES,
+  levelForXp,
+  SAMPLE_LIBRARY,
+} from "@/lib/game";
 import { readSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -23,9 +29,11 @@ export async function GET() {
         xp,
         energy: data?.energy ?? 100,
         level: levelForXp(xp),
-        equipped: ["genesis-frame"],
+        equipped: ["genesis-frame", "techno-neon-visor"],
         unlockedSamples: SAMPLE_LIBRARY.filter((sample) => sample.unlockLevel <= levelForXp(xp).level),
         shop: CREATOR_STYLE_ITEMS,
+        genres: MUSIC_GENRES,
+        outfits: CREATOR_OUTFIT_ITEMS,
       },
     });
   }
@@ -37,9 +45,11 @@ export async function GET() {
       xp: 120,
     energy: 100,
     level: levelForXp(120),
-      equipped: ["genesis-frame"],
+      equipped: ["genesis-frame", "techno-neon-visor"],
       unlockedSamples: SAMPLE_LIBRARY.filter((sample) => sample.unlockLevel <= 1),
       shop: CREATOR_STYLE_ITEMS,
+      genres: MUSIC_GENRES,
+      outfits: CREATOR_OUTFIT_ITEMS,
       message: "Preview profile. Connect Supabase for persistence.",
     },
   });
