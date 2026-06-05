@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f7fbff;
+  --foreground: #121726;
+  --muted: #687284;
+  --panel: rgba(255, 255, 255, 0.74);
+  --panel-strong: rgba(255, 255, 255, 0.9);
+  --line: rgba(24, 39, 75, 0.11);
+  --accent: #ff8b1a;
+  --accent-2: #18c9e8;
+  --danger: #e54862;
+  --warning: #b76b00;
+  --chrome: #eef6ff;
+  --gold: #d99a2b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-panel: var(--panel);
+  --color-panel-strong: var(--panel-strong);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-chrome: var(--chrome);
+  --color-gold: var(--gold);
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+button,
+a,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(255, 139, 26, 0.22);
+}
+
+.noise {
+  background-image:
+    radial-gradient(circle at 15% -8%, rgba(255, 139, 26, 0.24), transparent 28rem),
+    radial-gradient(circle at 88% 8%, rgba(24, 201, 232, 0.2), transparent 24rem),
+    radial-gradient(circle at 50% 80%, rgba(217, 154, 43, 0.12), transparent 26rem),
+    linear-gradient(180deg, #fbfdff 0%, #f1f7ff 52%, #fff7ed 100%);
+}
+
+.glass {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.58));
+  box-shadow: 0 20px 60px rgba(43, 57, 92, 0.13);
+  backdrop-filter: blur(22px);
+}
+
+.holo-border {
+  position: relative;
+}
+
+.holo-border::before {
+  background: linear-gradient(135deg, rgba(255, 139, 26, 0.7), rgba(24, 201, 232, 0.48), rgba(217, 154, 43, 0.5));
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+  pointer-events: none;
+  position: absolute;
+}
