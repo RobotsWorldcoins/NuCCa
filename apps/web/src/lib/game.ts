@@ -22,6 +22,7 @@ export type CreatorStyleItem = {
   rarity: "common" | "rare" | "epic" | "legendary";
   cosmeticEffect: string;
   priceNucca: number;
+  reputationPoints: number;
 };
 
 export type CreatorOutfitItem = {
@@ -32,6 +33,7 @@ export type CreatorOutfitItem = {
   rarity: "common" | "rare" | "epic" | "legendary";
   visual: string;
   priceNucca: number;
+  reputationPoints: number;
 };
 
 export type Sample = {
@@ -61,6 +63,29 @@ export type Clan = {
   creationCostNucca: number;
 };
 
+export type MarketplaceListing = {
+  id: string;
+  itemId: string;
+  itemName: string;
+  itemType: "outfit" | "style" | "equipment";
+  seller: string;
+  priceNucca: number;
+  reputationPoints: number;
+  rarity: "common" | "rare" | "epic" | "legendary";
+};
+
+export type RankingRow = {
+  rank: number;
+  name: string;
+  type: "solo" | "clan";
+  points: number;
+  wins: number;
+  tracks: number;
+  votes: number;
+  reputation: number;
+  prizeNucca: number;
+};
+
 export const CLAN_CREATION_COST_NUCCA = 100_000;
 export const CLAN_MAX_MEMBERS = 3;
 
@@ -72,6 +97,7 @@ export const CREATOR_STYLE_ITEMS: CreatorStyleItem[] = [
     rarity: "rare",
     cosmeticEffect: "Orange chrome profile border and battle card frame.",
     priceNucca: 75,
+    reputationPoints: 12,
   },
   {
     id: "neon-label-badge",
@@ -80,6 +106,7 @@ export const CREATOR_STYLE_ITEMS: CreatorStyleItem[] = [
     rarity: "epic",
     cosmeticEffect: "Animated badge beside your name in leaderboards.",
     priceNucca: 180,
+    reputationPoints: 30,
   },
   {
     id: "solar-stage",
@@ -88,6 +115,7 @@ export const CREATOR_STYLE_ITEMS: CreatorStyleItem[] = [
     rarity: "legendary",
     cosmeticEffect: "Premium profile background and battle entrance scene.",
     priceNucca: 420,
+    reputationPoints: 75,
   },
 ];
 
@@ -115,6 +143,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "epic",
     visual: "black leather jacket with orange chrome studs",
     priceNucca: 180,
+    reputationPoints: 28,
   },
   {
     id: "pop-star-glow",
@@ -124,6 +153,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "rare",
     visual: "soft white spotlight and glossy stage sparkle",
     priceNucca: 120,
+    reputationPoints: 18,
   },
   {
     id: "techno-neon-visor",
@@ -133,6 +163,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "epic",
     visual: "cyan visor with animated equalizer reflection",
     priceNucca: 210,
+    reputationPoints: 34,
   },
   {
     id: "commercial-chrome-coat",
@@ -142,6 +173,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "rare",
     visual: "clean silver coat for premium brand drops",
     priceNucca: 160,
+    reputationPoints: 24,
   },
   {
     id: "classical-conductor-tailcoat",
@@ -151,6 +183,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "epic",
     visual: "black formal tailcoat with gold baton accent",
     priceNucca: 220,
+    reputationPoints: 36,
   },
   {
     id: "gospel-light-robe",
@@ -160,6 +193,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "legendary",
     visual: "white and gold robe with luminous choir halo",
     priceNucca: 360,
+    reputationPoints: 62,
   },
   {
     id: "oriental-silk-dragon",
@@ -169,6 +203,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "legendary",
     visual: "red silk stage layer with gold dragon trim",
     priceNucca: 390,
+    reputationPoints: 68,
   },
   {
     id: "trap-shadow-chain",
@@ -178,6 +213,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "rare",
     visual: "heavy black-gold chain and dark bass pulse",
     priceNucca: 140,
+    reputationPoints: 22,
   },
   {
     id: "latin-solar-shirt",
@@ -187,6 +223,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "rare",
     visual: "orange dance shirt with animated percussion glow",
     priceNucca: 130,
+    reputationPoints: 20,
   },
   {
     id: "afrobeat-pattern-kicks",
@@ -196,6 +233,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "epic",
     visual: "festival pattern sneakers with rhythm particles",
     priceNucca: 190,
+    reputationPoints: 31,
   },
   {
     id: "jazz-midnight-suit",
@@ -205,6 +243,7 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "epic",
     visual: "midnight suit with gold lapel and saxophone pin",
     priceNucca: 240,
+    reputationPoints: 40,
   },
   {
     id: "reggaeton-club-glasses",
@@ -214,7 +253,118 @@ export const CREATOR_OUTFIT_ITEMS: CreatorOutfitItem[] = [
     rarity: "rare",
     visual: "summer club sunglasses with pink-blue reflections",
     priceNucca: 125,
+    reputationPoints: 19,
   },
+];
+
+export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
+  {
+    id: "listing-solar-stage",
+    itemId: "solar-stage",
+    itemName: "Solar Stage",
+    itemType: "style",
+    seller: "Genesis Sound",
+    priceNucca: 620,
+    reputationPoints: 75,
+    rarity: "legendary",
+  },
+  {
+    id: "listing-techno-visor",
+    itemId: "techno-neon-visor",
+    itemName: "Techno Neon Visor",
+    itemType: "outfit",
+    seller: "Neon Syndicate",
+    priceNucca: 315,
+    reputationPoints: 34,
+    rarity: "epic",
+  },
+  {
+    id: "listing-gospel-robe",
+    itemId: "gospel-light-robe",
+    itemName: "Gospel Light Robe",
+    itemType: "outfit",
+    seller: "Eternal Frequency",
+    priceNucca: 540,
+    reputationPoints: 62,
+    rarity: "legendary",
+  },
+  {
+    id: "listing-trap-chain",
+    itemId: "trap-shadow-chain",
+    itemName: "Trap Shadow Chain",
+    itemType: "outfit",
+    seller: "Shadow Records",
+    priceNucca: 230,
+    reputationPoints: 22,
+    rarity: "rare",
+  },
+];
+
+export const MONTHLY_RANKING_ROWS: RankingRow[] = [
+  {
+    rank: 1,
+    name: "Genesis Sound",
+    type: "clan",
+    points: 12840,
+    wins: 18,
+    tracks: 42,
+    votes: 3810,
+    reputation: 920,
+    prizeNucca: 12000,
+  },
+  {
+    rank: 2,
+    name: "Neon Syndicate",
+    type: "clan",
+    points: 11920,
+    wins: 16,
+    tracks: 38,
+    votes: 3420,
+    reputation: 780,
+    prizeNucca: 7500,
+  },
+  {
+    rank: 3,
+    name: "Shadow Records",
+    type: "clan",
+    points: 10550,
+    wins: 14,
+    tracks: 31,
+    votes: 2980,
+    reputation: 690,
+    prizeNucca: 4500,
+  },
+  {
+    rank: 4,
+    name: "nucca",
+    type: "solo",
+    points: 9820,
+    wins: 11,
+    tracks: 27,
+    votes: 2510,
+    reputation: 340,
+    prizeNucca: 2500,
+  },
+  {
+    rank: 5,
+    name: "Eternal Frequency",
+    type: "clan",
+    points: 9410,
+    wins: 10,
+    tracks: 29,
+    votes: 2310,
+    reputation: 610,
+    prizeNucca: 1500,
+  },
+];
+
+export const RANKING_SCORING_RULES = [
+  { label: "Track built in app", points: 25 },
+  { label: "Verified vote received", points: 1 },
+  { label: "Solo battle win", points: 120 },
+  { label: "3v3 clan battle win", points: 260 },
+  { label: "Daily mission completed", points: 20 },
+  { label: "Qualified referral", points: 100 },
 ];
 
 export const SAMPLE_TYPE_LABELS: Record<SampleType, string> = {
@@ -322,7 +472,7 @@ export const MONTHLY_RANKING_RULES = [
   "Monthly ranking rewards are admin-funded from disclosed reserve balances.",
   "Points come from in-app music creation, verified votes, solo wins, crew wins, missions, and referrals.",
   "Crew 3v3 wins give clan points to every verified member on the winning side.",
-  "Cosmetic items affect identity and status, not hidden battle power.",
+  "Outfits, equipment, and accessories give reputation. Reputation increases battle advantage transparently.",
   "NUCCA prize sizes must be published before each month starts and can be lowered if reserves are weak.",
 ];
 
@@ -355,6 +505,12 @@ export const BATTLE_RULES: BattleRule[] = [
       "The app tracks commission, monthly prize reserve, AI operations reserve, and reward reserve before entry.",
   },
   {
+    id: "reputation-pressure",
+    title: "Reputation pressure",
+    value:
+      "If one side has 300 band reputation and the other has 150, the lower reputation side needs about 50% stronger performance/votes to overcome the gap.",
+  },
+  {
     id: "no-token-betting",
     title: "Support without casino risk",
     value: "Fans can back creators with Hype for XP/status. Spectator NUCCA betting stays disabled until licensing exists.",
@@ -373,6 +529,12 @@ export function levelForXp(xp: number) {
   return CREATOR_LEVELS.reduce((current, next) => {
     return xp >= next.xpRequired ? next : current;
   }, CREATOR_LEVELS[0]);
+}
+
+export function reputationEffortMultiplier(favoriteReputation: number, underdogReputation: number) {
+  if (favoriteReputation <= 0 || underdogReputation >= favoriteReputation) return 1;
+  const gapRatio = (favoriteReputation - underdogReputation) / favoriteReputation;
+  return Number((1 + gapRatio).toFixed(2));
 }
 
 export function compositionManifestHash(input: {

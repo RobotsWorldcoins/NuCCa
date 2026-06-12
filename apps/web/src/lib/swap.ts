@@ -8,12 +8,13 @@ import {
 } from "@/lib/constants";
 
 export type SwapRouteId = "nucca-wld" | "wld-nucca" | "nucca-usdc" | "usdc-nucca";
+export type SwapSymbol = "NUCCA" | "WLD" | "USDC";
 
 export type SwapRoute = {
   id: SwapRouteId;
   label: string;
-  inputSymbol: "NUCCA" | "WLD" | "USDC";
-  outputSymbol: "NUCCA" | "WLD" | "USDC";
+  inputSymbol: SwapSymbol;
+  outputSymbol: SwapSymbol;
   inputAddress: string;
   outputAddress: string;
   routeType: "direct_pool" | "routed";
@@ -24,6 +25,13 @@ export type SwapRoute = {
 };
 
 const UNISWAP_SWAP_BASE = "https://app.uniswap.org/swap";
+export const WORLD_SWAP_QUICK_ACTION_APP_ID = "app_6c5c5717c77abe83be8814c032c3a6f9";
+const WORLD_ACTION_BASE = "https://worldcoin.org/mini-app";
+export const SWAP_TOKEN_DECIMALS: Record<SwapSymbol, number> = {
+  NUCCA: 18,
+  WLD: 18,
+  USDC: 6,
+};
 
 function uniswapSwapUrl(inputAddress: string, outputAddress: string) {
   const params = new URLSearchParams({
@@ -91,8 +99,41 @@ export const SWAP_ROUTES: SwapRoute[] = [
   },
 ];
 
+export function decimalToBaseUnits(input: string, decimals: number) {
+  const normalized = input.trim();
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
+
+  const [whole, fractional = ""] = normalized.split(".");
+  const paddedFractional = fractional.slice(0, decimals).padEnd(decimals, "0");
+  return `${BigInt(whole || "0") * BigInt(10) ** BigInt(decimals) + BigInt(paddedFractional || "0")}`;
+}
+
+export function worldSwapQuickActionUrl({
+  route,
+  amountBaseUnits,
+  sourceAppId,
+}: {
+  route: SwapRoute;
+  amountBaseUnits: string;
+  sourceAppId?: string;
+}) {
+  const params = new URLSearchParams({
+    fromToken: route.inputAddress,
+    toToken: route.outputAddress,
+    amount: amountBaseUnits,
+    sourceAppId: sourceAppId || "app_nucca_pending",
+    sourceAppName: "NuCCa Genesis Studio",
+  });
+  const path = `/?${params.toString()}`;
+  const actionParams = new URLSearchParams({
+    app_id: WORLD_SWAP_QUICK_ACTION_APP_ID,
+    path,
+  });
+  return `${WORLD_ACTION_BASE}?${actionParams.toString()}`;
+}
+
 export const SWAP_INTEGRATION_STATUS = {
-  execution: "external_uniswap_ready",
+  execution: "world_swap_quick_action_ready",
   nativeMiniKit: "requires_developer_portal_allowlist",
   requiredAllowlist: [
     NUCCA_TOKEN_ADDRESS,

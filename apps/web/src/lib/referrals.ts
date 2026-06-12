@@ -13,6 +13,21 @@ export function createReferralCode(walletAddress: string) {
   return `nucca${clean.slice(0, 8)}`;
 }
 
+export function createReferralCodeFromUsername(username: string | null | undefined) {
+  const normalized = normalizeReferralCode(username ?? "");
+  return normalized.length >= 3 ? normalized : null;
+}
+
+export function createBestReferralCode({
+  username,
+  walletAddress,
+}: {
+  username?: string | null;
+  walletAddress: string;
+}) {
+  return createReferralCodeFromUsername(username) ?? createReferralCode(walletAddress);
+}
+
 export function referralTransparency(inputs: RewardInputs) {
   const reward = calculateReferralReward(inputs);
   return {

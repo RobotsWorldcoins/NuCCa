@@ -14,6 +14,7 @@ import { DAILY_REWARD_POLICY } from "@/lib/economy";
 
 export default function AdminPage() {
   const adminConfigured = adminWalletConfigured();
+  const rewardReserveConfigured = Boolean(process.env.REWARD_RESERVE_CONTRACT_ADDRESS);
 
   return (
     <main className="noise min-h-screen">
@@ -82,6 +83,8 @@ export default function AdminPage() {
             <Metric label="Referral cap" value={`${DAILY_REWARD_POLICY.referralMonthlyBudget} NUCCA/mo`} />
             <Metric label="Max friends" value={`${DAILY_REWARD_POLICY.maxReferralFriends}`} />
             <Metric label="Holders" value={`${TOKEN_FACTS.holders}`} />
+            <Metric label="Reward reserve" value={rewardReserveConfigured ? "Configured" : "Missing"} />
+            <Metric label="Treasury hidden" value={adminConfigured ? "Yes" : "Missing"} />
           </div>
         </Card>
 

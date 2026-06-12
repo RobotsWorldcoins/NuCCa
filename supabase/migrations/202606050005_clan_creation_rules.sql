@@ -2,6 +2,7 @@ alter table if exists clans
   add column if not exists owner_wallet text,
   add column if not exists creation_fee_nucca numeric(30, 18) not null default 100000,
   add column if not exists max_members integer not null default 3,
+  add column if not exists logo_url text,
   add column if not exists payment_tx_hash text;
 
 create unique index if not exists clans_name_unique_lower

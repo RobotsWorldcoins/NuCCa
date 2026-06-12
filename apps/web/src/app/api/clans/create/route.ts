@@ -11,6 +11,7 @@ const clanSchema = z.object({
   name: z.string().min(3).max(32),
   style: z.string().min(3).max(80),
   focus: z.string().min(3).max(120),
+  logoUrl: z.string().url().optional(),
   paymentTxHash: z.string().startsWith("0x").optional(),
 });
 
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
         name: body.data.name,
         style: body.data.style,
         focus: body.data.focus,
+        logoUrl: body.data.logoUrl ?? null,
         ownerWallet: session.walletAddress,
         members: 1,
         maxMembers: CLAN_MAX_MEMBERS,

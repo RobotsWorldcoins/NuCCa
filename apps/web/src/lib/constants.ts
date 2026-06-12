@@ -22,19 +22,69 @@ export const UNISWAP_QUOTER_V2_WORLDCHAIN =
 
 export const TOKEN_FACTS = {
   name: "NUCCA",
-  burned: 5_000_000,
-  burnedPercent: 5,
+  burned: 6_000_000,
+  burnedPercent: 6,
   holders: 33_000,
   patilopesBalance: 3_500_000,
   pufLockedPercent: 37.5,
+  pufVisibleLocked: 23_500_000,
   originalSupply: 100_000_000,
 };
+
+export const PUF_LOCKS = [
+  {
+    id: "puf-lock-2026-06-13",
+    amountNucca: 5_000_000,
+    usdValue: 62.52,
+    unlocksAt: "2026-06-13T04:50:00.000+01:00",
+  },
+  {
+    id: "puf-lock-2026-06-14",
+    amountNucca: 5_000_000,
+    usdValue: 62.52,
+    unlocksAt: "2026-06-14T04:50:00.000+01:00",
+  },
+  {
+    id: "puf-lock-2026-11-08",
+    amountNucca: 5_000_000,
+    usdValue: 62.52,
+    unlocksAt: "2026-11-08T04:50:00.000+00:00",
+  },
+  {
+    id: "puf-lock-2026-11-11",
+    amountNucca: 2_500_000,
+    usdValue: 32.98,
+    unlocksAt: "2026-11-11T04:50:00.000+00:00",
+  },
+  {
+    id: "puf-lock-2027-05-10",
+    amountNucca: 5_000_000,
+    usdValue: 62.52,
+    unlocksAt: "2027-05-10T04:50:00.000+01:00",
+  },
+  {
+    id: "puf-lock-2027-05-25",
+    amountNucca: 1_000_000,
+    usdValue: 13.64,
+    unlocksAt: "2027-05-25T04:50:00.000+01:00",
+  },
+] as const;
 
 export const ECONOMY_SPLIT = {
   treasury: 35,
   monthlyLeagueReserve: 35,
   aiReserve: 15,
   rewardsReserve: 15,
+};
+
+export const MARKETPLACE_COMMISSION_BPS = 1_000;
+export const MARKETPLACE_COMMISSION_PERCENT = 10;
+
+export const TREASURY_POLICY = {
+  publicRule:
+    "All platform commissions route to the admin treasury. The treasury address is intentionally not displayed in the app UI.",
+  rewardSource:
+    "Claims, referrals, rankings, and tournament prizes should be paid from a capped pre-funded reward reserve, not by exposing or automating the main admin wallet.",
 };
 
 export const BURN_POLICY = {

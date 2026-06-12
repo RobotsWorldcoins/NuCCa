@@ -75,4 +75,24 @@ contract NuccaSpendRouterTest {
         require(token.balanceOf(address(13)) == 0, "ai");
         require(token.balanceOf(address(14)) == 0, "rewards");
     }
+
+    function testMarketplaceSaleWithApproval() public {
+        MockToken token = new MockToken();
+        NuccaSpendRouter router =
+            new NuccaSpendRouter(
+                IERC20(address(token)),
+                new MockPermit2(),
+                address(11),
+                address(12),
+                address(13),
+                address(14)
+            );
+
+        token.mint(address(this), 1_000 ether);
+        token.approve(address(router), 1_000 ether);
+        router.marketplaceSaleWithApproval(address(22), 1_000 ether, "listing-1");
+
+        require(token.balanceOf(address(11)) == 100 ether, "treasury");
+        require(token.balanceOf(address(22)) == 900 ether, "seller");
+    }
 }

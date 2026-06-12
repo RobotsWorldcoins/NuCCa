@@ -23,8 +23,10 @@ contract NuccaSpendRouter {
     uint16 public monthlyLeagueReserveBps = 3500;
     uint16 public aiReserveBps = 1500;
     uint16 public rewardsBps = 1500;
+    uint16 public marketplaceTreasuryBps = 1000;
 
     event Spent(address indexed user, uint256 amount, string sink);
+    event MarketplaceSale(address indexed buyer, address indexed seller, uint256 amount, uint256 treasuryFee, string listingId);
     event Paused(bool paused);
 
     modifier onlyAdmin() {
@@ -103,6 +105,34 @@ contract NuccaSpendRouter {
         emit Spent(msg.sender, amount, sink);
     }
 
+    function marketplaceSaleWithApproval(address seller, uint256 amount, string calldata listingId) external {
+        require(!paused, "paused");
+        require(seller != address(0), "seller required");
+        require(seller != msg.sender, "self sale");
+        require(amount > 0, "amount required");
+
+        (uint256 treasuryFee, uint256 sellerAmount) = marketplaceSplit(amount);
+
+        require(nucca.transferFrom(msg.sender, treasury, treasuryFee), "treasury transfer failed");
+        require(nucca.transferFrom(msg.sender, seller, sellerAmount), "seller transfer failed");
+
+        emit MarketplaceSale(msg.sender, seller, amount, treasuryFee, listingId);
+    }
+
+    function marketplaceSaleWithPermit2(address seller, uint160 amount, string calldata listingId) external {
+        require(!paused, "paused");
+        require(seller != address(0), "seller required");
+        require(seller != msg.sender, "self sale");
+        require(amount > 0, "amount required");
+
+        (uint256 treasuryFee, uint256 sellerAmount) = marketplaceSplit(amount);
+
+        permit2.transferFrom(msg.sender, treasury, uint160(treasuryFee), address(nucca));
+        permit2.transferFrom(msg.sender, seller, uint160(sellerAmount), address(nucca));
+
+        emit MarketplaceSale(msg.sender, seller, amount, treasuryFee, listingId);
+    }
+
     function split(uint256 amount)
         public
         view
@@ -113,6 +143,16 @@ contract NuccaSpendRouter {
         aiAmount = amount * aiReserveBps / 10_000;
         rewardsAmount = amount - treasuryAmount - leagueAmount - aiAmount;
         return (treasuryAmount, leagueAmount, aiAmount, rewardsAmount);
+    }
+
+    function marketplaceSplit(uint256 amount)
+        public
+        view
+        returns (uint256 treasuryFee, uint256 sellerAmount)
+    {
+        treasuryFee = amount * marketplaceTreasuryBps / 10_000;
+        sellerAmount = amount - treasuryFee;
+        return (treasuryFee, sellerAmount);
     }
 
     function setPaused(bool value) external onlyAdmin {
@@ -126,5 +166,10 @@ contract NuccaSpendRouter {
         monthlyLeagueReserveBps = league_;
         aiReserveBps = ai_;
         rewardsBps = rewards_;
+    }
+
+    function setMarketplaceTreasuryBps(uint16 value) external onlyAdmin {
+        require(value <= 2_500, "fee too high");
+        marketplaceTreasuryBps = value;
     }
 }
