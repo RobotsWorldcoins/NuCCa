@@ -12,6 +12,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 type ScanBody = {
   zoneId?: string;
   paid?: boolean;
+  paymentReference?: string;
 };
 
 function todayKey() {
@@ -34,6 +35,17 @@ export async function POST(request: Request) {
     GENESIS_MAP_ZONES[0];
   const scanDate = todayKey();
   const supabase = getSupabaseAdmin();
+
+  if (paid && process.env.NODE_ENV === "production" && !body.paymentReference) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          "Extra scans cost 100 NUCCA and require a confirmed payment transaction before rewards are granted.",
+      },
+      { status: 402 },
+    );
+  }
 
   if (supabase) {
     const { data: previousScans, error: countError } = await supabase
