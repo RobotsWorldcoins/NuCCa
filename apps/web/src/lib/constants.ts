@@ -24,12 +24,14 @@ export const TOKEN_FACTS = {
   name: "NUCCA",
   burned: 6_000_000,
   burnedPercent: 6,
-  holders: 33_000,
+  holders: 42_000,
   patilopesBalance: 3_500_000,
   pufLockedPercent: 37.5,
   pufVisibleLocked: 23_500_000,
   originalSupply: 100_000_000,
 };
+
+export const DEAD_WALLET_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
 export const PUF_LOCKS = [
   {

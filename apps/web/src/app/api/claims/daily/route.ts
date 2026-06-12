@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchNuccaMarket } from "@/lib/dexscreener";
 import { calculateDailyClaim } from "@/lib/economy";
+import { TOKEN_FACTS } from "@/lib/constants";
 import { readSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -16,7 +17,7 @@ export async function POST() {
   const market = await fetchNuccaMarket().catch(() => null);
   const claim = calculateDailyClaim({
     launchDate: new Date("2026-06-01T00:00:00.000Z"),
-    activeUsers: 1_000,
+    activeUsers: TOKEN_FACTS.holders,
     priceUsd: market?.priceUsd ?? null,
     marketTrusted: market?.trustedForRewards ?? false,
   });

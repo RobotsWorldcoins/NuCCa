@@ -13,18 +13,22 @@ import {
   Headphones,
   ImageIcon,
   LockKeyhole,
+  Map as MapIcon,
   Medal,
   Orbit,
   Plus,
+  Radar,
   Search,
   Share2,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
+  Star,
   Swords,
   Trophy,
   Users,
   X,
+  Zap,
   Wallet,
 } from "lucide-react";
 import { MiniKit } from "@worldcoin/minikit-js";
@@ -43,11 +47,11 @@ import {
 } from "@/lib/battle-economy";
 import {
   ECONOMY_SPLIT,
-  MARKETPLACE_COMMISSION_PERCENT,
   PUF_LOCKS,
   TOKEN_FACTS,
   TREASURY_POLICY,
 } from "@/lib/constants";
+import { DAILY_REWARD_POLICY } from "@/lib/economy";
 import {
   BATTLE_RULES,
   CLAN_CREATION_COST_NUCCA,
@@ -56,6 +60,8 @@ import {
   CREATOR_MARKETPLACE_LISTINGS,
   CREATOR_OUTFIT_ITEMS,
   CREATOR_STYLE_ITEMS,
+  DISCOVERY_RULES,
+  GENESIS_MAP_ZONES,
   MUSIC_GENRES,
   MONTHLY_RANKING_ROWS,
   MONTHLY_RANKING_RULES,
@@ -63,7 +69,10 @@ import {
   SAMPLE_LIBRARY,
   SAMPLE_LIBRARY_COUNTS,
   SAMPLE_TYPE_LABELS,
+  addAttributes,
+  battlePowerFromAttributes,
   reputationEffortMultiplier,
+  type ItemAttributeId,
   type MusicGenre,
   type SampleType,
 } from "@/lib/game";
@@ -104,6 +113,33 @@ type ReferralState = {
   rules: string[];
 };
 
+type ChainState = {
+  totalSupply: number;
+  burnedTokens: number;
+  burnedPercent: number | null;
+  reportedHolders: number;
+  rewardReserveBalance: number | null;
+  fetchedAt: string;
+};
+
+type MapScanState = {
+  zone: { id: string; name: string };
+  paid: boolean;
+  paidCostNucca: number;
+  reward: {
+    type: string;
+    name: string;
+    description: string;
+    rarity: string;
+    xp?: number;
+    energy?: number;
+    reputationPoints?: number;
+    attributes?: Partial<Record<ItemAttributeId, number>>;
+  };
+  tokenReward: number;
+  rankingPoints: number;
+};
+
 type TabKey = "home" | "claim" | "music" | "arena" | "ranking" | "clans";
 type WorldProfile = {
   username: string | null;
@@ -126,6 +162,7 @@ export function GenesisStudioApp() {
   });
   const [activeTab, setActiveTab] = useState<TabKey>("home");
   const [market, setMarket] = useState<MarketState | null>(null);
+  const [chain, setChain] = useState<ChainState | null>(null);
   const [referral, setReferral] = useState<ReferralState | null>(null);
   const [worldProfile, setWorldProfile] = useState<WorldProfile>({
     username: null,
@@ -139,9 +176,10 @@ export function GenesisStudioApp() {
       : "Use a friend link or code.",
   );
   const [claimStatus, setClaimStatus] = useState("Ready");
+  const [mapStatus, setMapStatus] = useState("One free discovery scan available today.");
   const [worldStatus, setWorldStatus] = useState("Not verified");
   const [aiStatus, setAiStatus] = useState("Idle");
-  const [marketplaceStatus, setMarketplaceStatus] = useState("Open marketplace preview.");
+  const [lastMapScan, setLastMapScan] = useState<MapScanState | null>(null);
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [builderStatus, setBuilderStatus] = useState("No ranked track yet");
@@ -165,6 +203,7 @@ export function GenesisStudioApp() {
   const [swapStatus, setSwapStatus] = useState("World Swap Quick Action ready.");
   const [selectedSampleType, setSelectedSampleType] =
     useState<SampleType>("kick");
+  const [selectedMapZone, setSelectedMapZone] = useState(GENESIS_MAP_ZONES[0].id);
   const [selectedSampleIds, setSelectedSampleIds] = useState<string[]>([
     "kick-001",
     "bass-001",
@@ -229,9 +268,15 @@ export function GenesisStudioApp() {
     : null;
   const equippedOutfits = genreOutfits.slice(0, 2);
   const equippedStyleItems = CREATOR_STYLE_ITEMS.slice(0, 2);
-  const creatorReputation = [...equippedOutfits, ...equippedStyleItems].reduce(
+  const equippedItems = [...equippedOutfits, ...equippedStyleItems];
+  const equippedAttributes = addAttributes(equippedItems);
+  const creatorReputation = equippedItems.reduce(
     (total, item) => total + item.reputationPoints,
     0,
+  );
+  const creatorBattlePower = battlePowerFromAttributes(
+    equippedAttributes,
+    creatorReputation,
   );
   const bandReputation = creatorReputation * 3;
   const rivalBandReputation = Math.max(1, Math.round(bandReputation / 2));
@@ -259,6 +304,10 @@ export function GenesisStudioApp() {
   const selectedSamples = SAMPLE_LIBRARY.filter((sample) =>
     selectedSampleIds.includes(sample.id),
   );
+  const selectedZone =
+    GENESIS_MAP_ZONES.find((zone) => zone.id === selectedMapZone) ??
+    GENESIS_MAP_ZONES[0];
+  const tabBackground = `/backgrounds/${activeTab}.webp`;
   const filteredClans = CLANS.filter((clan) => {
     const query = clanSearch.trim().toLowerCase();
     if (!query) return true;
@@ -273,16 +322,19 @@ export function GenesisStudioApp() {
     Promise.all([
       fetch("/api/market/nucca").then((response) => response.json()),
       fetch("/api/referrals/summary").then((response) => response.json()),
+      fetch("/api/chain/nucca").then((response) => response.json()),
     ])
-      .then(([marketJson, referralJson]) => {
+      .then(([marketJson, referralJson, chainJson]) => {
         if (!active) return;
         setMarket(marketJson.market);
         setReferral(referralJson.referral);
+        setChain(chainJson.chain ?? null);
       })
       .catch(() => {
         if (!active) return;
         setMarket(null);
         setReferral(null);
+        setChain(null);
       });
 
     return () => {
@@ -450,6 +502,34 @@ export function GenesisStudioApp() {
     );
   }
 
+  async function scanGenesisMap(paid: boolean) {
+    setMapStatus(
+      paid
+        ? `Scanning extra route for ${DAILY_REWARD_POLICY.paidMapScanCostNucca} NUCCA`
+        : "Scanning free daily route",
+    );
+    const response = await fetch("/api/map/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ zoneId: selectedZone.id, paid }),
+    });
+    const json = await response.json();
+
+    if (!json.ok) {
+      setMapStatus(json.message ?? "Map scan failed.");
+      return;
+    }
+
+    setLastMapScan(json.scan);
+    setMapStatus(
+      `${json.scan.reward.name}: +${json.scan.reward.xp ?? 0} XP, +${json.scan.rankingPoints} ranking pts${
+        json.scan.tokenReward > 0
+          ? `, ${formatNucca(json.scan.tokenReward)} NUCCA`
+          : ""
+      }`,
+    );
+  }
+
   async function queueAiJob(generatorId: string) {
     setAiStatus("Queueing free AI job");
     const response = await fetch("/api/ai/jobs", {
@@ -612,12 +692,6 @@ export function GenesisStudioApp() {
     window.location.href = worldSwapUrl;
   }
 
-  function previewMarketplaceBuy(itemName: string) {
-    setMarketplaceStatus(
-      `${itemName} selected. Sale settlement takes ${MARKETPLACE_COMMISSION_PERCENT}% marketplace commission to treasury and sends the rest to the seller. Real trading still needs escrow, item ownership checks, and MiniKit allowlisting.`,
-    );
-  }
-
   async function createBattle() {
     if (!lastCompositionId) {
       setBattleStatus("Create an in-app track first");
@@ -641,7 +715,12 @@ export function GenesisStudioApp() {
   }
 
   return (
-    <main className="noise min-h-screen pb-28">
+    <main
+      className="min-h-screen bg-cover bg-fixed bg-center pb-28"
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(251, 253, 255, 0.92) 0%, rgba(241, 247, 255, 0.88) 48%, rgba(255, 247, 237, 0.92) 100%), url(${tabBackground})`,
+      }}
+    >
       <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-4">
         <header className="sticky top-0 z-20 -mx-4 border-b border-line bg-background/82 px-4 py-3 backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-3">
@@ -692,13 +771,13 @@ export function GenesisStudioApp() {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 border-t border-line bg-white/75 p-3 text-center">
-            <Metric label="Holders" value={formatNucca(TOKEN_FACTS.holders)} />
+            <Metric label="Holders" value={formatNucca(chain?.reportedHolders ?? TOKEN_FACTS.holders)} />
             <Metric
               label="Locked"
               onClick={() => setLockModalOpen(true)}
               value={`${TOKEN_FACTS.pufLockedPercent}%`}
             />
-            <Metric label="Burned" value={`${TOKEN_FACTS.burnedPercent}%`} />
+            <Metric label="Burned" value={`${chain?.burnedPercent?.toFixed(2) ?? TOKEN_FACTS.burnedPercent}%`} />
           </div>
         </section>
 
@@ -878,9 +957,10 @@ export function GenesisStudioApp() {
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Metric label="Creator rep" value={`${creatorReputation}`} />
-            <Metric label="3x3 band" value={`${bandReputation}`} />
+            <Metric label="Battle power" value={`${creatorBattlePower}`} />
             <Metric label="Equipped" value={`${equippedOutfits.length + equippedStyleItems.length}`} />
           </div>
+          <AttributeGrid attributes={equippedAttributes} />
           <div className="mt-3 grid grid-cols-3 gap-2">
             {genreOutfits.map((item) => (
               <div className="rounded-2xl border border-line bg-white/58 p-2" key={item.id}>
@@ -888,6 +968,7 @@ export function GenesisStudioApp() {
                 <p className="mt-1 text-[10px] uppercase text-muted">{item.slot}</p>
                 <p className="mt-2 font-mono text-xs font-black">{item.priceNucca} NUCCA</p>
                 <p className="mt-1 text-[10px] font-black text-accent">+{item.reputationPoints} rep</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted">{formatAttributes(item.attributes)}</p>
               </div>
             ))}
           </div>
@@ -898,6 +979,7 @@ export function GenesisStudioApp() {
                 <p className="mt-1 text-[10px] uppercase text-muted">{item.rarity}</p>
                 <p className="mt-2 font-mono text-xs font-black">{item.priceNucca} NUCCA</p>
                 <p className="mt-1 text-[10px] font-black text-accent">+{item.reputationPoints} rep</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted">{formatAttributes(item.attributes)}</p>
               </div>
             ))}
           </div>
@@ -1129,6 +1211,9 @@ export function GenesisStudioApp() {
                       #{index + 1} {clan.name}
                     </p>
                     <p className="truncate text-xs text-muted">{clan.style}</p>
+                    <p className="mt-1 truncate text-[11px] font-bold text-accent">
+                      {clan.motto}
+                    </p>
                   </div>
                   <span className="font-mono text-xs font-black">
                     {formatNucca(clan.monthlyPoints)} pts
@@ -1136,9 +1221,17 @@ export function GenesisStudioApp() {
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                   <Metric label="Members" value={`${clan.members}/${clan.maxMembers}`} />
-                  <Metric label="Cost" value={formatNucca(clan.creationCostNucca)} />
-                  <Metric label="Focus" value="3v3" />
+                  <Metric label="Rep" value={`${clan.reputation}`} />
+                  <Metric label="Win rate" value={`${clan.winRate}%`} />
                 </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  <Metric label="Wins" value={`${clan.wins}`} />
+                  <Metric label="Week battles" value={`${clan.weeklyBattles}`} />
+                  <Metric label="Create cost" value={formatNucca(clan.creationCostNucca)} />
+                </div>
+                <p className="mt-3 rounded-2xl border border-line bg-white/62 p-3 text-xs font-medium leading-5 text-muted">
+                  {clan.focus}
+                </p>
               </div>
             ))}
             {filteredClans.length === 0 ? (
@@ -1414,6 +1507,18 @@ export function GenesisStudioApp() {
             <Metric label="24h vol" value={formatUsd(market?.volume24h)} />
             <Metric label="24h txns" value={`${market?.txns24h ?? 0}`} />
           </div>
+          <div className="grid grid-cols-3 gap-2 border-t border-line bg-white/50 p-3 text-center">
+            <Metric label="Supply" value={formatNucca(chain?.totalSupply ?? TOKEN_FACTS.originalSupply)} />
+            <Metric label="Dead wallet" value={formatNucca(chain?.burnedTokens ?? TOKEN_FACTS.burned)} />
+            <Metric
+              label="Reserve"
+              value={
+                chain?.rewardReserveBalance !== null && chain?.rewardReserveBalance !== undefined
+                  ? formatNucca(chain.rewardReserveBalance)
+                  : "Config"
+              }
+            />
+          </div>
           {market?.warning ? (
             <p className="mx-4 mb-4 rounded-xl border border-warning/30 bg-orange-50 p-3 text-xs font-medium text-warning">
               {market.warning}
@@ -1546,16 +1651,13 @@ export function GenesisStudioApp() {
             <div>
               <CardTitle>Creator Marketplace</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                Trade outfits, equipment, and accessories in NUCCA. Marketplace commission is {MARKETPLACE_COMMISSION_PERCENT}%.
+                Trade RPG music gear in NUCCA. Items change creator stats, battle pressure, music quality, and ranking power.
               </p>
             </div>
             <IconBubble icon={<ShoppingBag size={20} />} />
           </div>
           <div className="mt-4 grid gap-2">
-            {CREATOR_MARKETPLACE_LISTINGS.map((listing) => {
-              const platformFee = listing.priceNucca * (MARKETPLACE_COMMISSION_PERCENT / 100);
-              const sellerNet = listing.priceNucca - platformFee;
-              return (
+            {CREATOR_MARKETPLACE_LISTINGS.map((listing) => (
                 <div
                   className="rounded-2xl border border-line bg-white/58 p-3"
                   key={listing.id}
@@ -1564,37 +1666,36 @@ export function GenesisStudioApp() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black">{listing.itemName}</p>
                       <p className="text-xs text-muted">
-                        {listing.rarity} / {listing.seller}
+                        {listing.itemType} / {listing.seller}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-mono text-sm font-black">
                         {formatNucca(listing.priceNucca)}
                       </p>
-                      <p className="text-[10px] font-black text-accent">
-                        +{listing.reputationPoints} rep
-                      </p>
+                      <Badge className="mt-1 border-orange-200 bg-orange-50 text-[10px] text-accent">
+                        {listing.rarity}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-center">
-                    <Metric label="Treasury fee" value={formatNucca(platformFee)} />
-                    <Metric label="Seller net" value={formatNucca(sellerNet)} />
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <Metric label="Rep" value={`+${listing.reputationPoints}`} />
+                    <Metric label="Power" value={`${battlePowerFromAttributes(listing.attributes, listing.reputationPoints)}`} />
+                    <Metric label="Stats" value={formatAttributes(listing.attributes, true)} />
                   </div>
+                  <p className="mt-3 rounded-2xl border border-line bg-white/68 p-3 text-xs font-medium leading-5 text-muted">
+                    {listing.gameplayUse}
+                  </p>
                   <Button
                     className="mt-3 w-full"
-                    onClick={() => previewMarketplaceBuy(listing.itemName)}
                     size="sm"
                     variant="secondary"
                   >
                     Buy with NUCCA
                   </Button>
                 </div>
-              );
-            })}
+              ))}
           </div>
-          <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-medium leading-5 text-muted">
-            {marketplaceStatus} {TREASURY_POLICY.publicRule}
-          </p>
         </Card>
 
         <Card className="holo-border">
@@ -1670,7 +1771,7 @@ export function GenesisStudioApp() {
 
         {activeTab === "claim" ? (
         <div className="grid gap-3">
-          <Card className="min-h-40">
+          <Card className="min-h-40 holo-border">
             <div className="flex items-center justify-between">
               <CardTitle>Daily Claim</CardTitle>
               <Gift className="text-accent" size={20} />
@@ -1682,6 +1783,109 @@ export function GenesisStudioApp() {
             <Button className="mt-4 w-full" onClick={claimDaily} size="sm">
               Claim
             </Button>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>Genesis Map</CardTitle>
+                <p className="mt-1 text-sm text-muted">
+                  Explore once per day for free. Extra scans cost {DAILY_REWARD_POLICY.paidMapScanCostNucca} NUCCA, max {DAILY_REWARD_POLICY.maxPaidMapScansPerDay}/day.
+                </p>
+              </div>
+              <IconBubble icon={<MapIcon size={20} />} />
+            </div>
+            <div className="mt-4 rounded-[28px] border border-line bg-gradient-to-br from-white via-cyan-50 to-orange-50 p-3">
+              <div className="relative min-h-56 overflow-hidden rounded-[24px] border border-white bg-white/50">
+                <div className="absolute left-6 top-8 h-24 w-24 rounded-full bg-cyan-300/40 blur-2xl" />
+                <div className="absolute right-4 top-16 h-28 w-28 rounded-full bg-orange-300/45 blur-2xl" />
+                <div className="absolute bottom-4 left-12 h-20 w-48 rounded-full bg-emerald-200/35 blur-2xl" />
+                <div className="relative grid min-h-56 grid-cols-2 gap-3 p-4">
+                  {GENESIS_MAP_ZONES.map((zone, index) => {
+                    const active = selectedZone.id === zone.id;
+                    return (
+                      <button
+                        className={
+                          active
+                            ? "rounded-3xl border border-foreground bg-foreground/94 p-3 text-left text-white shadow-xl"
+                            : "rounded-3xl border border-white/80 bg-white/72 p-3 text-left shadow-sm backdrop-blur"
+                        }
+                        key={zone.id}
+                        onClick={() => setSelectedMapZone(zone.id)}
+                        type="button"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={active ? "rounded-full bg-white/15 p-2" : "rounded-full bg-cyan-50 p-2 text-accent-2"}>
+                            {index === 0 ? <Radar size={16} /> : index === 1 ? <Star size={16} /> : index === 2 ? <Zap size={16} /> : <Trophy size={16} />}
+                          </span>
+                          <span className={active ? "font-mono text-[10px] font-black text-white/75" : "font-mono text-[10px] font-black text-muted"}>
+                            L{zone.unlockLevel}
+                          </span>
+                        </div>
+                        <p className="mt-3 text-sm font-black">{zone.name}</p>
+                        <p className={active ? "mt-1 line-clamp-2 text-[11px] leading-4 text-white/68" : "mt-1 line-clamp-2 text-[11px] leading-4 text-muted"}>
+                          {zone.focus}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-3 rounded-2xl border border-line bg-white/72 p-3">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+                  {selectedZone.name}
+                </p>
+                <p className="mt-1 text-sm font-bold text-muted">{selectedZone.theme}</p>
+                <p className="mt-1 text-xs leading-5 text-muted">{selectedZone.rewardHint}</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <Metric label="Daily pool" value={formatNucca(DAILY_REWARD_POLICY.dailyDiscoveryNuccaPool)} />
+              <Metric label="User cap" value={`${DAILY_REWARD_POLICY.maxPaidMapScansPerDay}+1`} />
+              <Metric label="Scan cost" value={formatNucca(DAILY_REWARD_POLICY.paidMapScanCostNucca)} />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button onClick={() => scanGenesisMap(false)}>
+                Free Scan
+              </Button>
+              <Button onClick={() => scanGenesisMap(true)} variant="secondary">
+                Extra Scan
+              </Button>
+            </div>
+            <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
+              {mapStatus}
+            </p>
+            {lastMapScan ? (
+              <div className="mt-3 rounded-3xl border border-line bg-white/70 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black">{lastMapScan.reward.name}</p>
+                    <p className="mt-1 text-xs text-muted">{lastMapScan.reward.description}</p>
+                  </div>
+                  <Badge className="border-orange-200 bg-orange-50 text-accent">
+                    {lastMapScan.reward.rarity}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  <Metric label="XP" value={`${lastMapScan.reward.xp ?? 0}`} />
+                  <Metric label="Ranking" value={`+${lastMapScan.rankingPoints}`} />
+                  <Metric label="NUCCA" value={formatNucca(lastMapScan.tokenReward)} />
+                </div>
+                {lastMapScan.reward.attributes ? (
+                  <AttributeGrid attributes={lastMapScan.reward.attributes} compact />
+                ) : null}
+              </div>
+            ) : null}
+            <div className="mt-4 grid gap-2">
+              {DISCOVERY_RULES.slice(0, 4).map((rule) => (
+                <div
+                  className="rounded-2xl border border-line bg-white/58 p-3 text-xs font-medium leading-5 text-muted"
+                  key={rule}
+                >
+                  {rule}
+                </div>
+              ))}
+            </div>
           </Card>
         </div>
         ) : null}
@@ -1929,6 +2133,59 @@ function formatLockDate(input: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(input));
+}
+
+const ATTRIBUTE_LABELS: Record<ItemAttributeId, string> = {
+  rhythm: "Rhythm",
+  melody: "Melody",
+  stage: "Stage",
+  production: "Prod",
+  fan: "Fan",
+  focus: "Focus",
+};
+
+function formatAttributes(
+  attributes: Partial<Record<ItemAttributeId, number>>,
+  compact = false,
+) {
+  const entries = Object.entries(attributes).filter(([, value]) => value);
+  if (entries.length === 0) return "No stats";
+  return entries
+    .map(([key, value]) => {
+      const label = ATTRIBUTE_LABELS[key as ItemAttributeId];
+      return compact ? `+${value} ${label}` : `${label} +${value}`;
+    })
+    .join(compact ? " / " : ", ");
+}
+
+function AttributeGrid({
+  attributes,
+  compact,
+}: {
+  attributes: Partial<Record<ItemAttributeId, number>>;
+  compact?: boolean;
+}) {
+  const entries = (Object.keys(ATTRIBUTE_LABELS) as ItemAttributeId[]).filter(
+    (attribute) => attributes[attribute],
+  );
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className={compact ? "mt-3 grid grid-cols-3 gap-2" : "mt-3 grid grid-cols-6 gap-1.5"}>
+      {entries.map((attribute) => (
+        <div
+          className="rounded-2xl border border-line bg-white/62 p-2 text-center shadow-sm"
+          key={attribute}
+        >
+          <p className="font-mono text-xs font-black">+{attributes[attribute]}</p>
+          <p className="mt-1 truncate text-[9px] font-bold uppercase text-muted">
+            {ATTRIBUTE_LABELS[attribute]}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function Metric({

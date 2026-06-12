@@ -30,8 +30,8 @@ const scenarios = [
     leaguePct: 10,
   },
   {
-    mode: "Flash Battle 24h crew 3v3 high pool",
-    dau: 33000,
+    mode: "Flash Battle 24h crew 3v3 high pool at 42k user base",
+    dau: 42000,
     battleRate: 0.02,
     avgVotes: 36,
     creatorEntry: 1000,

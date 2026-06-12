@@ -1,5 +1,6 @@
 const dailyRewardPolicy = {
   dailyNuccaBudget: 3000,
+  dailyDiscoveryNuccaPool: 1000,
   referralMonthlyBudget: 25000,
 };
 
@@ -23,6 +24,7 @@ function simulateClaims(activeUsers, months = 12) {
     const dailyRequested = perUser * activeUsers;
     const dailyPaid = Math.min(dailyRequested, dailyRewardPolicy.dailyNuccaBudget);
     const monthlyPaid = dailyPaid * 30;
+    const discoveryPoolPaid = dailyRewardPolicy.dailyDiscoveryNuccaPool * 30;
     total += monthlyPaid;
     rows.push({
       month: month + 1,
@@ -31,13 +33,15 @@ function simulateClaims(activeUsers, months = 12) {
       dailyRequested,
       dailyPaid,
       monthlyPaid,
+      discoveryPoolPaid,
+      maxMonthlyTokenOutflow: monthlyPaid + discoveryPoolPaid,
     });
   }
 
   return { activeUsers, total, rows };
 }
 
-for (const users of [1000, 10000, 33000]) {
+for (const users of [1000, 10000, 33000, 42000]) {
   const result = simulateClaims(users);
   console.log(JSON.stringify(result, null, 2));
 }
