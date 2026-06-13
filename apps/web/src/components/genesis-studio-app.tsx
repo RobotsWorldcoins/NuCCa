@@ -185,6 +185,12 @@ export function GenesisStudioApp() {
   const [mapStatus, setMapStatus] = useState("One free discovery scan available today.");
   const [worldStatus, setWorldStatus] = useState("Not verified");
   const [aiStatus, setAiStatus] = useState("Idle");
+  const [creatorUploadStatus, setCreatorUploadStatus] = useState(
+    "Profile image upload is local preview until storage is configured.",
+  );
+  const [marketplaceStatus, setMarketplaceStatus] = useState(
+    "Select an item to prepare a NUCCA purchase.",
+  );
   const [lastMapScan, setLastMapScan] = useState<MapScanState | null>(null);
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -686,6 +692,31 @@ export function GenesisStudioApp() {
     );
   }
 
+  function selectCreatorImage(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCreatorUploadStatus("Creator profile upload must be an image.");
+      return;
+    }
+
+    setCreatorUploadStatus(
+      `${file.name} selected. Production upload requires Supabase Storage/R2 before this becomes persistent.`,
+    );
+  }
+
+  function prepareMarketplacePurchase(
+    listing: (typeof CREATOR_MARKETPLACE_LISTINGS)[number],
+  ) {
+    if (!wallet.address) {
+      setMarketplaceStatus("Connect WalletAuth before preparing an item purchase.");
+      return;
+    }
+
+    setMarketplaceStatus(
+      `${listing.itemName} prepared for ${formatNucca(listing.priceNucca)} NUCCA. Final settlement needs NuccaSpendRouter allowlisting before purchase execution.`,
+    );
+  }
+
   async function quoteSwap() {
     if (!swapAmountBaseUnits) {
       setSwapStatus("Enter a valid amount first.");
@@ -1070,11 +1101,20 @@ export function GenesisStudioApp() {
                     width={160}
                   />
                 </div>
-                <Button size="sm" variant="secondary">
+                <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-white/70 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:bg-white">
                   Upload
-                </Button>
+                  <input
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(event) => selectCreatorImage(event.target.files?.[0] ?? null)}
+                    type="file"
+                  />
+                </label>
               </div>
             </div>
+            <p className="rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
+              {creatorUploadStatus}
+            </p>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
                 Outfit genre
@@ -1974,14 +2014,18 @@ export function GenesisStudioApp() {
                   </p>
                   <Button
                     className="mt-3 w-full"
+                    onClick={() => prepareMarketplacePurchase(listing)}
                     size="sm"
                     variant="secondary"
                   >
-                    Buy with NUCCA
+                    Prepare purchase
                   </Button>
                 </div>
               ))}
           </div>
+          <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
+            {marketplaceStatus}
+          </p>
         </Card>
 
         <Card className="holo-border">
@@ -2015,6 +2059,7 @@ export function GenesisStudioApp() {
                 </p>
               </div>
               <Button
+                aria-label="Copy referral code"
                 onClick={() => {
                   navigator.clipboard?.writeText(referralCode).catch(() => undefined);
                   setReferralClaimStatus("Referral code copied.");
@@ -2229,6 +2274,20 @@ export function GenesisStudioApp() {
           <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-medium leading-5 text-muted">
             {TREASURY_POLICY.publicRule} {TREASURY_POLICY.rewardSource}
           </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a
+              className="rounded-2xl border border-line bg-white/70 px-3 py-3 text-center text-xs font-black text-foreground"
+              href="/terms"
+            >
+              Terms
+            </a>
+            <a
+              className="rounded-2xl border border-line bg-white/70 px-3 py-3 text-center text-xs font-black text-foreground"
+              href="/privacy"
+            >
+              Privacy
+            </a>
+          </div>
         </Card>
         ) : null}
 

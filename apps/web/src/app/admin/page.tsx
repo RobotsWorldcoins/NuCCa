@@ -8,11 +8,38 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
-import { adminWalletConfigured } from "@/lib/admin";
+import { adminWalletConfigured, isAdminWallet } from "@/lib/admin";
 import { ECONOMY_SPLIT, TOKEN_FACTS } from "@/lib/constants";
 import { DAILY_REWARD_POLICY } from "@/lib/economy";
+import { readSession } from "@/lib/session";
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const session = await readSession();
+  const hasAdminAccess = isAdminWallet(session?.walletAddress);
+
+  if (!hasAdminAccess) {
+    return (
+      <main className="noise min-h-screen">
+        <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-4 py-5">
+          <Card className="holo-border">
+            <div className="flex items-center justify-between">
+              <CardTitle>Restricted Console</CardTitle>
+              <Shield className="text-accent" size={20} />
+            </div>
+            <p className="mt-4 text-sm font-medium leading-6 text-muted">
+              Admin WalletAuth session required. The treasury address and
+              operational controls are intentionally hidden from public users.
+            </p>
+            <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
+              Connect with the configured admin wallet inside World App to view
+              operational status.
+            </p>
+          </Card>
+        </div>
+      </main>
+    );
+  }
+
   const adminConfigured = adminWalletConfigured();
   const rewardReserveConfigured = Boolean(process.env.REWARD_RESERVE_CONTRACT_ADDRESS);
 

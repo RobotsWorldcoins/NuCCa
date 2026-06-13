@@ -7,12 +7,14 @@ Create the app in World Developer Portal:
 - App name: `NuCCa Genesis Studio`
 - App type: Mini App
 - Production URL: `https://nucca.vercel.app`
-- Chain: WorldChain mainnet
+- Terms URL: `https://nucca.vercel.app/terms`
+- Privacy URL: `https://nucca.vercel.app/privacy`
+- Chain: World Chain mainnet
 - App ID: copy to `NEXT_PUBLIC_WORLD_APP_ID`
 - RP ID: copy to `NEXT_PUBLIC_WORLD_RP_ID`
 - RP signing key: copy once to `WORLD_RP_SIGNING_KEY`
 
-Use production values before review:
+Use production public values before review:
 
 ```bash
 NEXT_PUBLIC_WORLD_ENV=production
@@ -21,11 +23,26 @@ NEXT_PUBLIC_NUCCA_TOKEN_ADDRESS=0x3f1F7daCdAb79FDedC16693871be7A63f05aB465
 NEXT_PUBLIC_NUCCA_SWAP_ROUTER_ADDRESS=<deployed_router>
 ```
 
+Use server-only values in Vercel:
+
+```bash
+WORLD_RP_SIGNING_KEY=<portal_rp_signing_key>
+SESSION_SECRET=<strong_random_32+_bytes>
+SUPABASE_URL=<supabase_project_url>
+SUPABASE_SERVICE_ROLE_KEY=<server_only_service_role>
+ADMIN_WALLET_ADDRESS=<admin_wallet_address>
+ADMIN_HEALTH_SECRET=<strong_random_health_secret>
+AI_WORKER_SHARED_SECRET=<strong_random_worker_secret>
+REWARD_SIGNER_PRIVATE_KEY=<capped_reward_signer_key>
+REWARD_RESERVE_CONTRACT_ADDRESS=<funded_reward_distributor>
+WORLDCHAIN_RPC_URL=https://worldchain-mainnet.g.alchemy.com/public
+```
+
 ## Description For Review
 
 Short description:
 
-`Create music, customize your studio identity, join creator battles, and use NUCCA for in-app progression.`
+`Create music, customize your creator identity, and compete in NUCCA-powered skill battles.`
 
 Avoid:
 
@@ -35,10 +52,10 @@ Avoid:
 - Investment language
 - Guaranteed rewards
 - Gambling wording
-- “Earn money”
-- “Profit”
+- "Earn money"
+- "Profit"
 
-## MiniKit/World ID
+## MiniKit And World ID
 
 Required live integrations:
 
@@ -73,11 +90,14 @@ The app should be submitted with:
 - No automatic burn promise.
 - No yield/staking claims.
 - No unlimited free AI promise.
-- Clear “minimum received” for swap.
+- Clear "minimum received" for swap.
 - Clear route quote before transaction.
 - Swap execution disabled if router address is missing.
 - Referral rules transparent and capped.
-- Battles described as creator contests; avoid casino/gambling language in submission copy.
+- Spectator token betting disabled.
+- Battles described as creator contests, not gambling.
+- `/admin` restricted by WalletAuth session and admin wallet.
+- `/api/admin/health` hidden unless `ADMIN_HEALTH_SECRET` is provided.
 
 ## Testing In World App
 
@@ -91,11 +111,13 @@ World docs state MiniKit commands must be tested inside World App. For productio
    - IDKit verification.
    - Daily claim no-error path.
    - Swap quote.
-   - Small WLD/USDC swap.
-   - Small NUCCA/WLD swap.
+   - Small WLD/USDC swap after router allowlisting.
+   - Small NUCCA/WLD swap after router allowlisting.
    - Rejected transaction path.
    - Poor connection/reload recovery.
 
 ## Developer Portal MCP Option
 
-If you want me to automate Portal actions later, connect the official Developer Portal MCP with a team API key. Without that token, app creation and review submission require your manual Portal authentication.
+If you want me to automate Portal actions later, connect the official Developer
+Portal MCP with a team API key. Without that token, app creation and review
+submission require your manual Portal authentication.
