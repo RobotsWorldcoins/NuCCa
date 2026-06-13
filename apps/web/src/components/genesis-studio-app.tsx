@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { encodeFunctionData, type Address } from "viem";
 import {
   ArrowLeftRight,
   Bot,
@@ -78,10 +79,14 @@ import {
 } from "@/lib/game";
 import {
   NATIVE_SWAP_EXECUTION_STEPS,
+  NUCCA_SWAP_ROUTER_ABI,
+  PERMIT2_APPROVE_ABI,
+  PERMIT2_WORLDCHAIN,
   SWAP_ROUTES,
   SWAP_INTEGRATION_STATUS,
   SWAP_TOKEN_DECIMALS,
   decimalToBaseUnits,
+  type NativeSwapQuote,
   type SwapRouteId,
 } from "@/lib/swap";
 import {
@@ -204,6 +209,9 @@ export function GenesisStudioApp() {
   const [swapStatus, setSwapStatus] = useState(
     "Native swap design ready. Execution unlocks after World allowlisting and router tests.",
   );
+  const [swapQuote, setSwapQuote] = useState<NativeSwapQuote | null>(null);
+  const [swapLoading, setSwapLoading] = useState(false);
+  const [swapSlippageBps, setSwapSlippageBps] = useState(100);
   const [selectedSampleType, setSelectedSampleType] =
     useState<SampleType>("kick");
   const [selectedMapZone, setSelectedMapZone] = useState(GENESIS_MAP_ZONES[0].id);
@@ -262,7 +270,6 @@ export function GenesisStudioApp() {
     swapAmount,
     SWAP_TOKEN_DECIMALS[currentSwapRoute.inputSymbol],
   );
-  const swapAmountLabel = swapAmountBaseUnits ? `${swapAmount} ${currentSwapRoute.inputSymbol}` : "No amount";
   const equippedOutfits = genreOutfits.slice(0, 2);
   const equippedStyleItems = CREATOR_STYLE_ITEMS.slice(0, 2);
   const equippedItems = [...equippedOutfits, ...equippedStyleItems];
@@ -679,15 +686,155 @@ export function GenesisStudioApp() {
     );
   }
 
-  function prepareNativeSwap() {
+  async function quoteSwap() {
     if (!swapAmountBaseUnits) {
       setSwapStatus("Enter a valid amount first.");
       return;
     }
 
-    setSwapStatus(
-      `${swapAmountLabel} prepared for ${currentSwapRoute.label}. Next production step: quote this route on QuoterV2, apply slippage, then submit Permit2 + router call with MiniKit.sendTransaction.`,
-    );
+    setSwapLoading(true);
+    setSwapStatus("Quoting live Uniswap route on WorldChain.");
+    try {
+      const response = await fetch("/api/swap/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          routeId: selectedSwapRoute,
+          amount: swapAmount,
+          slippageBps: swapSlippageBps,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message ?? "Quote unavailable.");
+      }
+
+      setSwapQuote(json.quote);
+      setSwapStatus(
+        json.quote.executable
+          ? "Quote ready. Execute inside World App when route and minimum received look correct."
+          : "Quote ready. Router deployment address is missing, so execution is still blocked.",
+      );
+    } catch (error) {
+      setSwapQuote(null);
+      setSwapStatus(error instanceof Error ? error.message : "Quote unavailable.");
+    } finally {
+      setSwapLoading(false);
+    }
+  }
+
+  async function executeSwap() {
+    if (!swapQuote) {
+      setSwapStatus("Get a fresh quote first.");
+      return;
+    }
+
+    if (!swapQuote.routerAddress) {
+      setSwapStatus("NuCCaSwapRouter is not deployed/configured yet.");
+      return;
+    }
+
+    if (!MiniKit.isInstalled()) {
+      setSwapStatus("Open this inside World App to execute the swap.");
+      return;
+    }
+
+    try {
+      setSwapLoading(true);
+      setSwapStatus("Opening World App transaction permission sheet.");
+      const amountIn = BigInt(swapQuote.amountIn);
+      const amountOutMinimum = BigInt(swapQuote.amountOutMinimum);
+      const routerAddress = swapQuote.routerAddress as Address;
+      const permitData = encodeFunctionData({
+        abi: PERMIT2_APPROVE_ABI,
+        functionName: "approve",
+        args: [swapQuote.tokenIn as Address, routerAddress, amountIn, 0],
+      });
+
+      const deadline = BigInt(swapQuote.deadline);
+      let swapData: `0x${string}`;
+      if (swapQuote.kind === "v3") {
+        swapData = encodeFunctionData({
+          abi: NUCCA_SWAP_ROUTER_ABI,
+          functionName: "swapExactInputSingleWithPermit2",
+          args: [
+            {
+              tokenIn: swapQuote.tokenIn as Address,
+              tokenOut: swapQuote.tokenOut as Address,
+              fee: swapQuote.fee ?? 3000,
+              amountIn,
+              amountOutMinimum,
+              sqrtPriceLimitX96: BigInt(0),
+              deadline,
+            },
+          ],
+        });
+      } else if (swapQuote.kind === "v2") {
+        swapData = encodeFunctionData({
+          abi: NUCCA_SWAP_ROUTER_ABI,
+          functionName: "swapV2ExactInputWithPermit2",
+          args: [
+            swapQuote.tokenIn as Address,
+            swapQuote.tokenOut as Address,
+            amountIn,
+            amountOutMinimum,
+            deadline,
+          ],
+        });
+      } else if (swapQuote.kind === "mixed-v2-v3") {
+        swapData = encodeFunctionData({
+          abi: NUCCA_SWAP_ROUTER_ABI,
+          functionName: "swapV2ToV3WithPermit2",
+          args: [
+            swapQuote.tokenIn as Address,
+            swapQuote.bridgeToken as Address,
+            swapQuote.tokenOut as Address,
+            swapQuote.fee ?? 3000,
+            amountIn,
+            amountOutMinimum,
+            deadline,
+          ],
+        });
+      } else {
+        swapData = encodeFunctionData({
+          abi: NUCCA_SWAP_ROUTER_ABI,
+          functionName: "swapV3ToV2WithPermit2",
+          args: [
+            swapQuote.tokenIn as Address,
+            swapQuote.bridgeToken as Address,
+            swapQuote.tokenOut as Address,
+            swapQuote.fee ?? 3000,
+            amountIn,
+            amountOutMinimum,
+            deadline,
+          ],
+        });
+      }
+
+      const result = await MiniKit.sendTransaction({
+        chainId: 480,
+        transactions: [
+          {
+            to: PERMIT2_WORLDCHAIN,
+            data: permitData,
+          },
+          {
+            to: routerAddress,
+            data: swapData,
+          },
+        ],
+      });
+
+      if ("data" in result && result.data && "userOpHash" in result.data) {
+        setSwapStatus(`Swap submitted. userOp: ${shortAddress(result.data.userOpHash)}`);
+      } else {
+        setSwapStatus("Swap was not submitted.");
+      }
+    } catch (error) {
+      setSwapStatus(error instanceof Error ? error.message : "Swap transaction failed.");
+    } finally {
+      setSwapLoading(false);
+    }
   }
 
   async function createBattle() {
@@ -1587,7 +1734,7 @@ export function GenesisStudioApp() {
                   key={action.label}
                   onClick={() =>
                     action.enabled
-                      ? prepareNativeSwap()
+                      ? quoteSwap()
                       : setSwapStatus(`${action.label} is a wallet module placeholder. Swap is the active module now.`)
                   }
                   type="button"
@@ -1619,7 +1766,10 @@ export function GenesisStudioApp() {
                       : "rounded-2xl border border-line bg-white/68 p-3 text-left shadow-sm"
                   }
                   key={route.id}
-                  onClick={() => setSelectedSwapRoute(route.id)}
+                  onClick={() => {
+                    setSelectedSwapRoute(route.id);
+                    setSwapQuote(null);
+                  }}
                   type="button"
                 >
                   <p className="text-sm font-black">{route.label}</p>
@@ -1684,14 +1834,69 @@ export function GenesisStudioApp() {
               <input
                 className="rounded-2xl border border-line bg-white/80 px-4 py-3 font-mono text-sm font-black outline-none"
                 inputMode="decimal"
-                onChange={(event) => setSwapAmount(event.target.value)}
+                onChange={(event) => {
+                  setSwapAmount(event.target.value);
+                  setSwapQuote(null);
+                }}
                 placeholder={`Amount in ${currentSwapRoute.inputSymbol}`}
                 value={swapAmount}
               />
-              <Button onClick={prepareNativeSwap}>
-                Prepare
+              <Button disabled={swapLoading} onClick={quoteSwap}>
+                {swapLoading ? "Working" : "Get quote"}
               </Button>
             </div>
+
+            <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
+              <label className="rounded-2xl border border-line bg-white/70 px-4 py-3 text-xs font-bold text-muted">
+                Slippage
+                <input
+                  className="mt-1 w-full bg-transparent font-mono text-sm font-black text-foreground outline-none"
+                  inputMode="numeric"
+                  max={500}
+                  min={1}
+                  onChange={(event) => {
+                    setSwapQuote(null);
+                    setSwapSlippageBps(
+                      Math.min(Math.max(Number(event.target.value) || 1, 1), 500),
+                    );
+                  }}
+                  value={swapSlippageBps}
+                />
+              </label>
+              <div className="rounded-2xl border border-line bg-white/70 px-4 py-3 text-center">
+                <p className="font-mono text-sm font-black">{(swapSlippageBps / 100).toFixed(2)}%</p>
+                <p className="text-[10px] font-bold uppercase text-muted">max slip</p>
+              </div>
+            </div>
+
+            {swapQuote ? (
+              <div className="mt-3 rounded-2xl border border-accent/20 bg-white/78 p-3">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+                  Live quote
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+                  <Metric
+                    label="Expected"
+                    value={`${formatBaseUnits(swapQuote.amountOut, SWAP_TOKEN_DECIMALS[currentSwapRoute.outputSymbol])} ${currentSwapRoute.outputSymbol}`}
+                  />
+                  <Metric
+                    label="Minimum"
+                    value={`${formatBaseUnits(swapQuote.amountOutMinimum, SWAP_TOKEN_DECIMALS[currentSwapRoute.outputSymbol])} ${currentSwapRoute.outputSymbol}`}
+                  />
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-center">
+                  <Metric label="Route" value={formatSwapProtocol(swapQuote)} />
+                  <Metric label="TTL" value={`${swapQuote.ttlSeconds}s`} />
+                </div>
+                <Button
+                  className="mt-3 w-full"
+                  disabled={swapLoading || !swapQuote.executable}
+                  onClick={executeSwap}
+                >
+                  {swapQuote.executable ? "Execute in World App" : "Deploy router first"}
+                </Button>
+              </div>
+            ) : null}
 
             <p className="mt-2 rounded-2xl border border-line bg-white/68 p-3 text-xs font-bold text-muted">
               {swapStatus}
@@ -1700,7 +1905,7 @@ export function GenesisStudioApp() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <a
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line bg-white/78 px-3 py-3 text-sm font-black text-foreground shadow-sm"
-                href={currentSwapRoute.dexscreenerUrl}
+                href={currentSwapRoute.dexscreenerUrl ?? currentSwapRoute.uniswapUrl}
                 rel="noreferrer"
                 target="_blank"
               >
@@ -2214,6 +2419,27 @@ function formatLockDate(input: string) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(input));
+}
+
+function formatBaseUnits(value: string, decimals: number) {
+  const amount = BigInt(value);
+  const base = BigInt(10) ** BigInt(decimals);
+  const whole = amount / base;
+  const fraction = amount % base;
+  const fractionText = fraction
+    .toString()
+    .padStart(decimals, "0")
+    .slice(0, decimals >= 6 ? 6 : decimals)
+    .replace(/0+$/, "");
+
+  return fractionText ? `${whole}.${fractionText}` : whole.toString();
+}
+
+function formatSwapProtocol(quote: NativeSwapQuote) {
+  if (quote.kind === "v2") return "V2";
+  if (quote.kind === "v3") return `V3 ${quote.fee}`;
+  if (quote.kind === "mixed-v2-v3") return `V2 + V3 ${quote.fee}`;
+  return `V3 ${quote.fee} + V2`;
 }
 
 const ATTRIBUTE_LABELS: Record<ItemAttributeId, string> = {

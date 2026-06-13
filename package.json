@@ -12,7 +12,8 @@
     "typecheck": "npm --workspace apps/web run typecheck",
     "stress:economy": "node scripts/stress-test-economy.mjs",
     "stress:battles": "node scripts/stress-test-battles.mjs",
-    "contracts:compile": "node scripts/compile-contracts.mjs"
+    "contracts:compile": "node scripts/compile-contracts.mjs",
+    "deploy:swap-router": "npm --workspace apps/web run deploy:swap-router"
   },
   "devDependencies": {
     "solc": "^0.8.35"
