@@ -77,10 +77,11 @@ import {
   type SampleType,
 } from "@/lib/game";
 import {
+  NATIVE_SWAP_EXECUTION_STEPS,
   SWAP_ROUTES,
+  SWAP_INTEGRATION_STATUS,
   SWAP_TOKEN_DECIMALS,
   decimalToBaseUnits,
-  worldSwapQuickActionUrl,
   type SwapRouteId,
 } from "@/lib/swap";
 import {
@@ -200,7 +201,9 @@ export function GenesisStudioApp() {
   const [selectedSwapRoute, setSelectedSwapRoute] =
     useState<SwapRouteId>("nucca-wld");
   const [swapAmount, setSwapAmount] = useState("1");
-  const [swapStatus, setSwapStatus] = useState("World Swap Quick Action ready.");
+  const [swapStatus, setSwapStatus] = useState(
+    "Native swap design ready. Execution unlocks after World allowlisting and router tests.",
+  );
   const [selectedSampleType, setSelectedSampleType] =
     useState<SampleType>("kick");
   const [selectedMapZone, setSelectedMapZone] = useState(GENESIS_MAP_ZONES[0].id);
@@ -259,13 +262,7 @@ export function GenesisStudioApp() {
     swapAmount,
     SWAP_TOKEN_DECIMALS[currentSwapRoute.inputSymbol],
   );
-  const worldSwapUrl = swapAmountBaseUnits
-    ? worldSwapQuickActionUrl({
-        route: currentSwapRoute,
-        amountBaseUnits: swapAmountBaseUnits,
-        sourceAppId: process.env.NEXT_PUBLIC_WORLD_APP_ID,
-      })
-    : null;
+  const swapAmountLabel = swapAmountBaseUnits ? `${swapAmount} ${currentSwapRoute.inputSymbol}` : "No amount";
   const equippedOutfits = genreOutfits.slice(0, 2);
   const equippedStyleItems = CREATOR_STYLE_ITEMS.slice(0, 2);
   const equippedItems = [...equippedOutfits, ...equippedStyleItems];
@@ -682,14 +679,15 @@ export function GenesisStudioApp() {
     );
   }
 
-  function openWorldSwap() {
-    if (!worldSwapUrl) {
+  function prepareNativeSwap() {
+    if (!swapAmountBaseUnits) {
       setSwapStatus("Enter a valid amount first.");
       return;
     }
 
-    setSwapStatus("Opening World Swap inside World App.");
-    window.location.href = worldSwapUrl;
+    setSwapStatus(
+      `${swapAmountLabel} prepared for ${currentSwapRoute.label}. Next production step: quote this route on QuoterV2, apply slippage, then submit Permit2 + router call with MiniKit.sendTransaction.`,
+    );
   }
 
   async function createBattle() {
@@ -1526,123 +1524,206 @@ export function GenesisStudioApp() {
           ) : null}
         </Card>
 
-        <Card className="holo-border">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle>Swap Studio</CardTitle>
-              <p className="mt-1 text-sm text-muted">
-                Real Uniswap WorldChain routes for NUCCA/WLD and routed NUCCA/USDC.
+        <Card className="holo-border overflow-hidden p-0">
+          <div className="relative overflow-hidden bg-[#080a0f] p-4 text-white">
+            <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-accent/30 blur-3xl" />
+            <div className="absolute -bottom-20 left-10 h-52 w-52 rounded-full bg-accent-2/20 blur-3xl" />
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="relative h-11 w-11 overflow-hidden rounded-2xl border border-white/15 bg-white">
+                  <Image
+                    alt="NUCCA token"
+                    className="object-cover"
+                    fill
+                    sizes="44px"
+                    src="/brand/nucca-token.jpeg"
+                  />
+                </div>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">
+                    Genesis Wallet
+                  </p>
+                  <p className="text-lg font-black">NUCCA Swap</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-white/80">
+                <button
+                  aria-label="Copy connected wallet"
+                  className="rounded-2xl border border-white/10 bg-white/8 p-2"
+                  onClick={() => wallet.address && navigator.clipboard?.writeText(wallet.address).catch(() => undefined)}
+                  type="button"
+                >
+                  <Copy size={17} />
+                </button>
+                <div className="rounded-2xl border border-white/10 bg-white/8 p-2">
+                  <LockKeyhole size={17} />
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/8 p-2">
+                  <Clock3 size={17} />
+                </div>
+              </div>
+            </div>
+            <div className="relative mt-5 rounded-[28px] border border-white/10 bg-white/[0.07] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.13)]">
+              <p className="text-xs font-bold text-white/50">Connected account</p>
+              <p className="mt-1 font-mono text-2xl font-black">
+                {wallet.address ? shortAddress(wallet.address) : "WalletAuth required"}
+              </p>
+              <p className="mt-2 text-xs font-medium leading-5 text-white/55">
+                Internal WorldChain swap surface. No PUF, no external swap app, no hidden redirect.
               </p>
             </div>
-            <IconBubble icon={<ArrowLeftRight size={20} />} />
+            <div className="relative mt-4 grid grid-cols-3 gap-2">
+              {[
+                { label: "Send", icon: <Wallet size={20} />, enabled: false },
+                { label: "Swap", icon: <ArrowLeftRight size={20} />, enabled: true },
+                { label: "Receive", icon: <Plus size={20} />, enabled: false },
+              ].map((action) => (
+                <button
+                  className={
+                    action.enabled
+                      ? "rounded-3xl border border-accent/30 bg-accent/18 p-4 text-center text-accent shadow-[0_14px_35px_rgba(255,139,26,0.18)]"
+                      : "rounded-3xl border border-white/10 bg-white/[0.06] p-4 text-center text-white/55"
+                  }
+                  key={action.label}
+                  onClick={() =>
+                    action.enabled
+                      ? prepareNativeSwap()
+                      : setSwapStatus(`${action.label} is a wallet module placeholder. Swap is the active module now.`)
+                  }
+                  type="button"
+                >
+                  <span className="mx-auto flex justify-center">{action.icon}</span>
+                  <span className="mt-2 block text-sm font-black">{action.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {SWAP_ROUTES.map((route) => (
-              <button
-                className={
-                  selectedSwapRoute === route.id
-                    ? "rounded-2xl border border-foreground bg-foreground p-3 text-left text-white shadow-lg"
-                    : "rounded-2xl border border-line bg-white/58 p-3 text-left shadow-sm"
-                }
-                key={route.id}
-                onClick={() => setSelectedSwapRoute(route.id)}
-                type="button"
-              >
-                <p className="text-sm font-black">{route.label}</p>
-                <p className={selectedSwapRoute === route.id ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-muted"}>
-                  {route.routeType === "direct_pool" ? "Direct pool" : "Routed swap"}
+
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>Native Swap Engine</CardTitle>
+                <p className="mt-1 text-sm text-muted">
+                  Same wallet-style flow, NuCCa colors, real WorldChain route logic.
                 </p>
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 rounded-2xl border border-line bg-white/60 p-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
-              Active route
-            </p>
-            <p className="mt-1 text-sm font-black">{currentSwapRoute.pathLabel}</p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              {currentSwapRoute.liquidityNote}
-            </p>
-          </div>
-          <div className="mt-3 grid gap-2 rounded-3xl border border-line bg-[#17191f] p-3 text-white">
-            {["NUCCA", "WLD", "USDC"].map((symbol) => (
-              <div
-                className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3"
-                key={symbol}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white">
-                    {symbol === "NUCCA" ? (
-                      <Image
-                        alt="NUCCA"
-                        className="object-cover"
-                        fill
-                        sizes="40px"
-                        src="/brand/nucca-token.jpeg"
-                      />
-                    ) : (
-                      <span className="flex h-full items-center justify-center text-sm font-black text-foreground">
-                        {symbol}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-black">{symbol}</p>
-                    <p className="text-xs text-white/45">
-                      {symbol === currentSwapRoute.inputSymbol
-                        ? "From token"
-                        : symbol === currentSwapRoute.outputSymbol
-                          ? "To token"
-                          : "Available route"}
-                    </p>
-                  </div>
-                </div>
-                <span className="rounded-xl border border-white/10 px-3 py-1 text-xs font-black text-white/75">
-                  Actions
-                </span>
               </div>
-            ))}
-          </div>
-          <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-            <input
-              className="rounded-2xl border border-line bg-white/70 px-4 py-3 font-mono text-sm font-black outline-none"
-              inputMode="decimal"
-              onChange={(event) => setSwapAmount(event.target.value)}
-              placeholder={`Amount in ${currentSwapRoute.inputSymbol}`}
-              value={swapAmount}
-            />
-            <Button onClick={openWorldSwap}>
-              Swap
-            </Button>
-          </div>
-          <p className="mt-2 rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
-            {swapStatus}
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <a
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground px-3 py-3 text-sm font-black text-white shadow-lg"
-              href={worldSwapUrl ?? currentSwapRoute.uniswapUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              World Swap <ExternalLink size={15} />
-            </a>
-            <a
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line bg-white/70 px-3 py-3 text-sm font-black text-foreground shadow-sm"
-              href={currentSwapRoute.dexscreenerUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Chart <ExternalLink size={15} />
-            </a>
-          </div>
-          <div className="mt-3 rounded-2xl border border-orange-200 bg-orange-50/80 p-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-warning">
-              Native in-app swap
+              <IconBubble icon={<ArrowLeftRight size={20} />} />
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {SWAP_ROUTES.map((route) => (
+                <button
+                  className={
+                    selectedSwapRoute === route.id
+                      ? "rounded-2xl border border-foreground bg-foreground p-3 text-left text-white shadow-lg"
+                      : "rounded-2xl border border-line bg-white/68 p-3 text-left shadow-sm"
+                  }
+                  key={route.id}
+                  onClick={() => setSelectedSwapRoute(route.id)}
+                  type="button"
+                >
+                  <p className="text-sm font-black">{route.label}</p>
+                  <p className={selectedSwapRoute === route.id ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-muted"}>
+                    {route.routeType === "direct_pool" ? "Direct pool" : "Multi-hop route"}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 grid gap-2 rounded-3xl border border-line bg-white/62 p-3">
+              {["NUCCA", "WLD", "USDC"].map((symbol) => (
+                <div
+                  className="flex items-center justify-between rounded-2xl border border-line bg-white/72 p-3"
+                  key={symbol}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-11 w-11 overflow-hidden rounded-full border border-white bg-white shadow-sm">
+                      {symbol === "NUCCA" ? (
+                        <Image
+                          alt="NUCCA"
+                          className="object-cover"
+                          fill
+                          sizes="44px"
+                          src="/brand/nucca-token.jpeg"
+                        />
+                      ) : (
+                        <span className="flex h-full items-center justify-center text-sm font-black text-foreground">
+                          {symbol}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-black">{symbol}</p>
+                      <p className="text-xs text-muted">
+                        {symbol === currentSwapRoute.inputSymbol
+                          ? "From token"
+                          : symbol === currentSwapRoute.outputSymbol
+                            ? "To token"
+                            : "Wallet token"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="rounded-xl border border-line bg-white px-3 py-1 text-xs font-black text-muted">
+                    WorldChain
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-line bg-white/70 p-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+                Active route
+              </p>
+              <p className="mt-1 text-sm font-black">{currentSwapRoute.pathLabel}</p>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                {currentSwapRoute.liquidityNote}
+              </p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+              <input
+                className="rounded-2xl border border-line bg-white/80 px-4 py-3 font-mono text-sm font-black outline-none"
+                inputMode="decimal"
+                onChange={(event) => setSwapAmount(event.target.value)}
+                placeholder={`Amount in ${currentSwapRoute.inputSymbol}`}
+                value={swapAmount}
+              />
+              <Button onClick={prepareNativeSwap}>
+                Prepare
+              </Button>
+            </div>
+
+            <p className="mt-2 rounded-2xl border border-line bg-white/68 p-3 text-xs font-bold text-muted">
+              {swapStatus}
             </p>
-            <p className="mt-1 text-xs leading-5 text-warning">
-              World Swap Quick Action opens the supported swap screen inside World App. Direct Uniswap router execution inside this UI still requires token/router allowlisting, quote/slippage protection, and userOp receipt polling.
-            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <a
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line bg-white/78 px-3 py-3 text-sm font-black text-foreground shadow-sm"
+                href={currentSwapRoute.dexscreenerUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Route chart <ExternalLink size={15} />
+              </a>
+              <div className="inline-flex items-center justify-center rounded-2xl border border-line bg-white/68 px-3 py-3 text-center text-xs font-black text-muted">
+                {SWAP_INTEGRATION_STATUS.requiredAllowlist.length} allowlist entries
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-accent/20 bg-orange-50/80 p-3">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-warning">
+                Real internal swap path
+              </p>
+              <div className="mt-2 grid gap-2">
+                {NATIVE_SWAP_EXECUTION_STEPS.map((step, index) => (
+                  <div className="flex gap-2 text-xs font-medium leading-5 text-warning" key={step}>
+                    <span className="font-mono font-black">{index + 1}</span>
+                    <span>{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </Card>
 

@@ -1,6 +1,8 @@
 import {
   NUCCA_PRIMARY_PAIR_ADDRESS,
   NUCCA_TOKEN_ADDRESS,
+  UNISWAP_QUOTER_V2_WORLDCHAIN,
+  UNISWAP_SWAP_ROUTER_02_WORLDCHAIN,
   UNISWAP_UNIVERSAL_ROUTER_211_WORLDCHAIN,
   UNISWAP_UNIVERSAL_ROUTER_WORLDCHAIN,
   USDC_TOKEN_ADDRESS,
@@ -25,8 +27,7 @@ export type SwapRoute = {
 };
 
 const UNISWAP_SWAP_BASE = "https://app.uniswap.org/swap";
-export const WORLD_SWAP_QUICK_ACTION_APP_ID = "app_6c5c5717c77abe83be8814c032c3a6f9";
-const WORLD_ACTION_BASE = "https://worldcoin.org/mini-app";
+export const PERMIT2_WORLDCHAIN = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 export const SWAP_TOKEN_DECIMALS: Record<SwapSymbol, number> = {
   NUCCA: 18,
   WLD: 18,
@@ -108,40 +109,28 @@ export function decimalToBaseUnits(input: string, decimals: number) {
   return `${BigInt(whole || "0") * BigInt(10) ** BigInt(decimals) + BigInt(paddedFractional || "0")}`;
 }
 
-export function worldSwapQuickActionUrl({
-  route,
-  amountBaseUnits,
-  sourceAppId,
-}: {
-  route: SwapRoute;
-  amountBaseUnits: string;
-  sourceAppId?: string;
-}) {
-  const params = new URLSearchParams({
-    fromToken: route.inputAddress,
-    toToken: route.outputAddress,
-    amount: amountBaseUnits,
-    sourceAppId: sourceAppId || "app_nucca_pending",
-    sourceAppName: "NuCCa Genesis Studio",
-  });
-  const path = `/?${params.toString()}`;
-  const actionParams = new URLSearchParams({
-    app_id: WORLD_SWAP_QUICK_ACTION_APP_ID,
-    path,
-  });
-  return `${WORLD_ACTION_BASE}?${actionParams.toString()}`;
-}
+export const NATIVE_SWAP_EXECUTION_STEPS = [
+  "Quote route with QuoterV2 on World Chain",
+  "Calculate amountOutMinimum with slippage guard",
+  "Approve exact input through Permit2 AllowanceTransfer",
+  "Call NuCCa swap router or Universal Router with MiniKit.sendTransaction",
+  "Poll userOp receipt before showing the swap as complete",
+] as const;
 
 export const SWAP_INTEGRATION_STATUS = {
-  execution: "world_swap_quick_action_ready",
-  nativeMiniKit: "requires_developer_portal_allowlist",
+  execution: "native_minikit_required",
+  quickActionFallback: "disabled_by_product_decision",
+  chainId: 480,
   requiredAllowlist: [
     NUCCA_TOKEN_ADDRESS,
     WLD_TOKEN_ADDRESS,
     USDC_TOKEN_ADDRESS,
+    PERMIT2_WORLDCHAIN,
+    UNISWAP_QUOTER_V2_WORLDCHAIN,
+    UNISWAP_SWAP_ROUTER_02_WORLDCHAIN,
     UNISWAP_UNIVERSAL_ROUTER_WORLDCHAIN,
     UNISWAP_UNIVERSAL_ROUTER_211_WORLDCHAIN,
   ],
   note:
-    "Real in-app MiniKit execution requires World Developer Portal allowlisting and production quote/slippage handling before enabling transaction signing.",
+    "The NuCCa UI must not deep-link to another swap app. Real in-app execution requires World Developer Portal allowlisting, quote/slippage protection, Permit2 approval, sendTransaction, and userOp receipt polling.",
 };
