@@ -3,7 +3,9 @@ import path from "node:path";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: path.resolve(process.cwd(), "../.."),
+    root: process.env.VERCEL
+      ? process.cwd()
+      : path.resolve(process.cwd(), "../.."),
   },
 };
 
