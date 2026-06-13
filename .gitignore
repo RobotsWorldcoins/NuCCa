@@ -9,3 +9,5 @@ coverage/
 tsconfig.tsbuildinfo
 contracts/out/
 contracts/cache/
+
+.vercel
