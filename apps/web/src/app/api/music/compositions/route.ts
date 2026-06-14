@@ -7,8 +7,28 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 const compositionSchema = z.object({
   title: z.string().min(2).max(80),
-  sampleIds: z.array(z.string()).min(2).max(12),
+  sampleIds: z.array(z.string()).max(12).default([]),
   arrangement: z.string().min(3).max(2000),
+  source: z.enum(["sample-builder", "ai-song-forge"]).default("sample-builder"),
+  prompt: z.string().max(1000).optional(),
+  genre: z.string().max(40).optional(),
+  aiModel: z.string().max(80).optional(),
+}).superRefine((value, context) => {
+  if (value.source === "sample-builder" && value.sampleIds.length < 2) {
+    context.addIssue({
+      code: "custom",
+      message: "Sample builder compositions need at least two samples.",
+      path: ["sampleIds"],
+    });
+  }
+
+  if (value.source === "ai-song-forge" && (!value.prompt || value.prompt.length < 8)) {
+    context.addIssue({
+      code: "custom",
+      message: "AI song forge compositions need a prompt.",
+      path: ["prompt"],
+    });
+  }
 });
 
 export async function POST(request: Request) {
@@ -43,6 +63,10 @@ export async function POST(request: Request) {
     sampleIds: body.data.sampleIds,
     arrangement: body.data.arrangement,
     createdAt,
+    source: body.data.source,
+    prompt: body.data.prompt,
+    genre: body.data.genre,
+    aiModel: body.data.aiModel,
   });
   const manifestHash = createHash("sha256").update(manifest).digest("hex");
   const supabase = getSupabaseAdmin();
@@ -75,6 +99,10 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       title: body.data.title,
       sampleIds: body.data.sampleIds,
+      source: body.data.source,
+      prompt: body.data.prompt ?? null,
+      genre: body.data.genre ?? null,
+      aiModel: body.data.aiModel ?? null,
       manifestHash,
       rankedEligible: true,
       persisted: false,

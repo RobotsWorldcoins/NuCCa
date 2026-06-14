@@ -22,7 +22,7 @@
 - WLD: `0x2cFc85d8E48F8EAB294be644d9E25C3030863003`
 - USDC: `0x79A02482A880bCE3F13e09Da970dC34db4CD24d1`
 - Permit2: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
-- PUF/V2 router: `0x541aB7c31A119441eF3575F6973277DE0eF460bd`
+- V2 liquidity router: `0x541aB7c31A119441eF3575F6973277DE0eF460bd`
 - V2 factory: `0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f`
 - Uniswap V3 QuoterV2: `0x10158D43e6cc414deE1Bd1eB0EfC6a5cBCfF244c`
 - Uniswap V3 SwapRouter02: `0x091AD9e2e6e5eD44c1c66dB50e49A601F9f36cF6`
@@ -83,7 +83,7 @@ Contract entrypoints:
 - `NuccaSwapRouter.swapV2ToV3WithPermit2`
 - `NuccaSwapRouter.swapV3ToV2WithPermit2`
 
-The PUF/V2 router and Uniswap V3 router are contract dependencies called by `NuccaSwapRouter`; the mini app does not call them directly.
+The V2 liquidity router and Uniswap V3 router are contract dependencies called by `NuccaSwapRouter`; the mini app does not call them directly.
 
 ## Current Safety Limits
 

@@ -12,7 +12,7 @@ const profileSchema = z.object({
 export async function GET() {
   const session = await readSession();
   if (!session) {
-    return NextResponse.json({ ok: false, message: "WalletAuth required." }, { status: 401 });
+    return NextResponse.json({ ok: false, message: "Connect wallet first." }, { status: 401 });
   }
 
   const fallbackCode = createReferralCode(session.walletAddress);
@@ -53,7 +53,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const session = await readSession();
   if (!session) {
-    return NextResponse.json({ ok: false, message: "WalletAuth required." }, { status: 401 });
+    return NextResponse.json({ ok: false, message: "Connect wallet first." }, { status: 401 });
   }
 
   const body = profileSchema.safeParse(await request.json());

@@ -4,7 +4,7 @@ import { createPublicClient, http, type Address } from "viem";
 import { worldchain } from "viem/chains";
 import {
   NUCCA_SWAP_ROUTER_ADDRESS,
-  PUF_UNISWAP_V2_ROUTER_WORLDCHAIN,
+  NUCCA_V2_LIQUIDITY_ROUTER_WORLDCHAIN,
   UNISWAP_QUOTER_V2_WORLDCHAIN,
   WLD_TOKEN_ADDRESS,
 } from "@/lib/constants";
@@ -251,7 +251,7 @@ async function quoteV3ToV2Route(route: SwapRoute, amountIn: bigint): Promise<Quo
 
 async function quoteV2ExactInput(tokenIn: Address, tokenOut: Address, amountIn: bigint) {
   const amounts = await publicClient.readContract({
-    address: PUF_UNISWAP_V2_ROUTER_WORLDCHAIN as Address,
+    address: NUCCA_V2_LIQUIDITY_ROUTER_WORLDCHAIN as Address,
     abi: v2RouterAbi,
     functionName: "getAmountsOut",
     args: [amountIn, [tokenIn, tokenOut]],

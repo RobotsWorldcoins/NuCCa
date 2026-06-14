@@ -107,6 +107,8 @@ export type MarketplaceListing = {
   itemName: string;
   itemType: "outfit" | "style" | "equipment";
   seller: string;
+  sellerWallet?: `0x${string}`;
+  saleKind: "official_item" | "marketplace_resale";
   priceNucca: number;
   reputationPoints: number;
   attributes: ItemAttributes;
@@ -128,6 +130,7 @@ export type RankingRow = {
 
 export const CLAN_CREATION_COST_NUCCA = 100_000;
 export const CLAN_MAX_MEMBERS = 3;
+export const MUSIC_EXPORT_COST_NUCCA = 100_000;
 
 export const CREATOR_STYLE_ITEMS: CreatorStyleItem[] = [
   {
@@ -333,7 +336,8 @@ export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
     itemId: "solar-stage",
     itemName: "Solar Stage",
     itemType: "style",
-    seller: "Genesis Sound",
+    seller: "Genesis Vault",
+    saleKind: "official_item",
     priceNucca: 620,
     reputationPoints: 75,
     attributes: { stage: 14, fan: 8, focus: 3 },
@@ -345,7 +349,8 @@ export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
     itemId: "techno-neon-visor",
     itemName: "Techno Neon Visor",
     itemType: "outfit",
-    seller: "Neon Syndicate",
+    seller: "Genesis Vault",
+    saleKind: "official_item",
     priceNucca: 315,
     reputationPoints: 34,
     attributes: { production: 7, rhythm: 5, focus: 2 },
@@ -357,7 +362,8 @@ export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
     itemId: "gospel-light-robe",
     itemName: "Gospel Light Robe",
     itemType: "outfit",
-    seller: "Eternal Frequency",
+    seller: "Genesis Vault",
+    saleKind: "official_item",
     priceNucca: 540,
     reputationPoints: 62,
     attributes: { melody: 9, fan: 6, focus: 5 },
@@ -369,7 +375,8 @@ export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
     itemId: "trap-shadow-chain",
     itemName: "Trap Shadow Chain",
     itemType: "outfit",
-    seller: "Shadow Records",
+    seller: "Genesis Vault",
+    saleKind: "official_item",
     priceNucca: 230,
     reputationPoints: 22,
     attributes: { rhythm: 7, stage: 3, production: 2 },
@@ -381,7 +388,8 @@ export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
     itemId: "orbit-drum-pad",
     itemName: "Orbit Drum Pad",
     itemType: "equipment",
-    seller: "Genesis Sound",
+    seller: "Genesis Vault",
+    saleKind: "official_item",
     priceNucca: 480,
     reputationPoints: 45,
     attributes: { rhythm: 10, production: 5, focus: 2 },
@@ -393,7 +401,8 @@ export const CREATOR_MARKETPLACE_LISTINGS: MarketplaceListing[] = [
     itemId: "vocal-core",
     itemName: "Vocal Core",
     itemType: "equipment",
-    seller: "Eternal Frequency",
+    seller: "Genesis Vault",
+    saleKind: "official_item",
     priceNucca: 690,
     reputationPoints: 58,
     attributes: { melody: 10, fan: 6, production: 3 },
@@ -813,17 +822,28 @@ export function pickDiscoveryReward(seed: string, paidScan: boolean) {
 
 export function compositionManifestHash(input: {
   walletAddress: string;
-  sampleIds: string[];
+  sampleIds?: string[];
   arrangement: string;
   createdAt: string;
+  source?: "sample-builder" | "ai-song-forge";
+  prompt?: string;
+  genre?: string;
+  aiModel?: string;
 }) {
   return JSON.stringify({
     app: "nucca-genesis-studio",
-    version: 1,
+    version: 2,
     walletAddress: input.walletAddress.toLowerCase(),
-    sampleIds: input.sampleIds.slice().sort(),
+    source: input.source ?? "sample-builder",
+    sampleIds: (input.sampleIds ?? []).slice().sort(),
     arrangement: input.arrangement,
+    prompt: input.prompt ?? null,
+    genre: input.genre ?? null,
+    aiModel: input.aiModel ?? null,
     createdAt: input.createdAt,
-    provenance: "in-app-builder",
+    provenance:
+      input.source === "ai-song-forge"
+        ? "in-app-ai-song-forge"
+        : "in-app-builder",
   });
 }

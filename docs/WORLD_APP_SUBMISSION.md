@@ -21,6 +21,7 @@ NEXT_PUBLIC_WORLD_ENV=production
 NEXT_PUBLIC_WORLD_CHAIN_ID=480
 NEXT_PUBLIC_NUCCA_TOKEN_ADDRESS=0x3f1F7daCdAb79FDedC16693871be7A63f05aB465
 NEXT_PUBLIC_NUCCA_SWAP_ROUTER_ADDRESS=<deployed_router>
+NEXT_PUBLIC_NUCCA_SPEND_ROUTER_ADDRESS=<deployed_spend_router>
 ```
 
 Use server-only values in Vercel:
@@ -33,6 +34,7 @@ SUPABASE_SERVICE_ROLE_KEY=<server_only_service_role>
 ADMIN_WALLET_ADDRESS=<admin_wallet_address>
 ADMIN_HEALTH_SECRET=<strong_random_health_secret>
 AI_WORKER_SHARED_SECRET=<strong_random_worker_secret>
+NUCCA_SPEND_ROUTER_ADDRESS=<deployed_spend_router>
 REWARD_SIGNER_PRIVATE_KEY=<capped_reward_signer_key>
 REWARD_RESERVE_CONTRACT_ADDRESS=<funded_reward_distributor>
 WORLDCHAIN_RPC_URL=https://worldchain-mainnet.g.alchemy.com/public
@@ -80,6 +82,10 @@ Contract entrypoints:
   - `swapExactInputSingleWithPermit2((address,address,uint24,uint160,uint256,uint160,uint64))`
   - `swapV2ToV3WithPermit2(address,address,address,uint24,uint160,uint256,uint64)`
   - `swapV3ToV2WithPermit2(address,address,address,uint24,uint160,uint256,uint64)`
+- NuccaSpendRouter: `<deployed_spend_router>`
+  - `spendWithPermit2(uint160,string)`
+  - `spendToTreasuryWithPermit2(uint160,string)`
+  - `marketplaceSaleWithPermit2(address,uint160,string)`
 
 ## Review Risk Controls
 
@@ -93,6 +99,7 @@ The app should be submitted with:
 - Clear "minimum received" for swap.
 - Clear route quote before transaction.
 - Swap execution disabled if router address is missing.
+- Paid item/clan/map actions settle only after receipt confirmation.
 - Referral rules transparent and capped.
 - Spectator token betting disabled.
 - Battles described as creator contests, not gambling.
@@ -111,6 +118,9 @@ World docs state MiniKit commands must be tested inside World App. For productio
    - IDKit verification.
    - Daily claim no-error path.
    - Swap quote.
+   - Small marketplace item payment after SpendRouter allowlisting.
+   - Extra map scan payment and receipt confirmation.
+   - Clan creation payment and receipt confirmation.
    - Small WLD/USDC swap after router allowlisting.
    - Small NUCCA/WLD swap after router allowlisting.
    - Rejected transaction path.

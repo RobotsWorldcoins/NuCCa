@@ -5,6 +5,8 @@ import {
   CLAN_MAX_MEMBERS,
 } from "@/lib/game";
 import { readSession } from "@/lib/session";
+import { verifySpendReceipt } from "@/lib/spend-receipts";
+import { clanCreationSink, clanIdFromName } from "@/lib/spend-sinks";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const clanSchema = z.object({
@@ -14,15 +16,6 @@ const clanSchema = z.object({
   logoUrl: z.string().url().optional(),
   paymentTxHash: z.string().startsWith("0x").optional(),
 });
-
-function clanIdFromName(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
-}
 
 export async function POST(request: Request) {
   const session = await readSession();
@@ -66,7 +59,7 @@ export async function POST(request: Request) {
         persisted: false,
       },
       message:
-        "Preview clan created. Production requires a confirmed 100,000 NUCCA treasury payment.",
+        "Clan preview created. A live clan requires a confirmed 100,000 NUCCA payment.",
     });
   }
 
@@ -84,12 +77,60 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(
-    {
-      ok: false,
-      message:
-        "Clan payment receipt verification is not deployed yet. Do not persist paid clans until contract receipt verification is wired.",
-    },
-    { status: 503 },
-  );
+  const expectedSink = clanCreationSink(body.data.name);
+  const receipt = await verifySpendReceipt({
+    transactionHash: body.data.paymentTxHash as `0x${string}`,
+    userWallet: session.walletAddress,
+    expectedAmountNucca: CLAN_CREATION_COST_NUCCA,
+    expectedSink,
+  });
+
+  if (!receipt.ok) {
+    return NextResponse.json(
+      { ok: false, message: receipt.message },
+      { status: 402 },
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("clans")
+    .insert({
+      id,
+      name: body.data.name,
+      style: body.data.style,
+      focus: body.data.focus,
+      logo_url: body.data.logoUrl ?? null,
+      owner_wallet: session.walletAddress,
+      creation_fee_nucca: CLAN_CREATION_COST_NUCCA,
+      max_members: CLAN_MAX_MEMBERS,
+      payment_tx_hash: body.data.paymentTxHash,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json(
+      { ok: false, message: error.message },
+      { status: 409 },
+    );
+  }
+
+  const { error: memberError } = await supabase.from("clan_members").insert({
+    clan_id: id,
+    wallet_address: session.walletAddress,
+    role: "captain",
+  });
+
+  if (memberError) {
+    return NextResponse.json(
+      { ok: false, message: memberError.message },
+      { status: 409 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    clan: data,
+    message: "Clan created and captain seat assigned.",
+  });
 }

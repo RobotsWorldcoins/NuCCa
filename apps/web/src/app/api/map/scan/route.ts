@@ -7,6 +7,8 @@ import {
 } from "@/lib/game";
 import { TOKEN_FACTS } from "@/lib/constants";
 import { readSession } from "@/lib/session";
+import { verifySpendReceipt } from "@/lib/spend-receipts";
+import { mapExtraScanSink } from "@/lib/spend-sinks";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 type ScanBody = {
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
   const scanDate = todayKey();
   const supabase = getSupabaseAdmin();
 
-  if (paid && process.env.NODE_ENV === "production" && !body.paymentReference) {
+  if (paid && (!body.paymentReference || !body.paymentReference.startsWith("0x"))) {
     return NextResponse.json(
       {
         ok: false,
@@ -45,6 +47,27 @@ export async function POST(request: Request) {
       },
       { status: 402 },
     );
+  }
+
+  if (paid && body.paymentReference) {
+    const expectedSink = mapExtraScanSink({
+      walletAddress: session.walletAddress,
+      scanDate,
+      zoneId: zone.id,
+    });
+    const receipt = await verifySpendReceipt({
+      transactionHash: body.paymentReference as `0x${string}`,
+      userWallet: session.walletAddress,
+      expectedAmountNucca: DAILY_REWARD_POLICY.paidMapScanCostNucca,
+      expectedSink,
+    });
+
+    if (!receipt.ok) {
+      return NextResponse.json(
+        { ok: false, message: receipt.message },
+        { status: 402 },
+      );
+    }
   }
 
   if (supabase) {

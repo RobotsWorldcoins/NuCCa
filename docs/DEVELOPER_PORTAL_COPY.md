@@ -54,6 +54,9 @@ transactions. Spectator token betting is not enabled. Battles are skill-based
 creator contests using in-app music compositions and ranking rules. Swap
 execution remains disabled until the NuccaSwapRouter is deployed, audited,
 configured in Vercel, and allowlisted in the World Developer Portal.
+Marketplace purchases, clan creation, map extra scans, and future export fees
+use NuccaSpendRouter with Permit2 and receipt confirmation before paid benefits
+are settled.
 
 **Keywords**
 
@@ -119,6 +122,10 @@ Contract entrypoints:
   - `swapExactInputSingleWithPermit2((address,address,uint24,uint160,uint256,uint160,uint64))`
   - `swapV2ToV3WithPermit2(address,address,address,uint24,uint160,uint256,uint64)`
   - `swapV3ToV2WithPermit2(address,address,address,uint24,uint160,uint256,uint64)`
+- NuccaSpendRouter: `<DEPLOYED_SPEND_ROUTER_ADDRESS>`
+  - `spendWithPermit2(uint160,string)`
+  - `spendToTreasuryWithPermit2(uint160,string)`
+  - `marketplaceSaleWithPermit2(address,uint160,string)`
 
 ## Vercel Environment Variables
 
@@ -130,6 +137,7 @@ Public:
 - `NEXT_PUBLIC_WORLD_CHAIN_ID=480`
 - `NEXT_PUBLIC_NUCCA_TOKEN_ADDRESS=0x3f1F7daCdAb79FDedC16693871be7A63f05aB465`
 - `NEXT_PUBLIC_NUCCA_SWAP_ROUTER_ADDRESS=<DEPLOYED_ROUTER_ADDRESS>`
+- `NEXT_PUBLIC_NUCCA_SPEND_ROUTER_ADDRESS=<DEPLOYED_SPEND_ROUTER_ADDRESS>`
 
 Server-only:
 
@@ -142,6 +150,7 @@ Server-only:
 - `AI_WORKER_SHARED_SECRET`
 - `REWARD_SIGNER_PRIVATE_KEY`
 - `REWARD_RESERVE_CONTRACT_ADDRESS`
+- `NUCCA_SPEND_ROUTER_ADDRESS`
 - `WORLDCHAIN_RPC_URL`
 
 Never set or expose:
@@ -163,6 +172,7 @@ the hero/store image. Export square PNG/WebP versions at the exact portal sizes.
 
 - Build in-app music loops from samples and queued free AI tools.
 - Customize your creator performer with RPG-style music equipment.
+- Buy RPG items with NUCCA; resale marketplace fee is 10%.
 - Enter skill-based creator battles and climb monthly rankings.
 - Join or create clans for 3v3 music competition.
 - Swap NUCCA, WLD, and USDC only after router deployment and allowlisting.

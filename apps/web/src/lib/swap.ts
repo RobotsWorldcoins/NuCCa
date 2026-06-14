@@ -2,7 +2,7 @@ import {
   NUCCA_SWAP_ROUTER_ADDRESS,
   NUCCA_PRIMARY_PAIR_ADDRESS,
   NUCCA_TOKEN_ADDRESS,
-  PUF_UNISWAP_V2_ROUTER_WORLDCHAIN,
+  NUCCA_V2_LIQUIDITY_ROUTER_WORLDCHAIN,
   UNISWAP_QUOTER_V2_WORLDCHAIN,
   UNISWAP_SWAP_ROUTER_02_WORLDCHAIN,
   UNISWAP_UNIVERSAL_ROUTER_211_WORLDCHAIN,
@@ -175,7 +175,7 @@ export const SWAP_ROUTES: SwapRoute[] = [
     routeType: "direct_pool",
     pathLabel: "NUCCA/WLD V2 pool",
     liquidityNote:
-      "Direct NUCCA/WLD pool created through the PUF/launcher V2 router and tracked on Dexscreener.",
+      "Direct NUCCA/WLD pool tracked on Dexscreener.",
     uniswapUrl: uniswapSwapUrl(NUCCA_TOKEN_ADDRESS, WLD_TOKEN_ADDRESS),
     dexscreenerUrl: `https://dexscreener.com/worldchain/${NUCCA_PRIMARY_PAIR_ADDRESS}`,
   },
@@ -189,7 +189,7 @@ export const SWAP_ROUTES: SwapRoute[] = [
     routeType: "direct_pool",
     pathLabel: "WLD/NUCCA V2 pool",
     liquidityNote:
-      "Direct WLD/NUCCA pool created through the PUF/launcher V2 router and tracked on Dexscreener.",
+      "Direct WLD/NUCCA pool tracked on Dexscreener.",
     uniswapUrl: uniswapSwapUrl(WLD_TOKEN_ADDRESS, NUCCA_TOKEN_ADDRESS),
     dexscreenerUrl: `https://dexscreener.com/worldchain/${NUCCA_PRIMARY_PAIR_ADDRESS}`,
   },
@@ -231,7 +231,7 @@ export const SWAP_ROUTES: SwapRoute[] = [
     routeType: "direct_pool",
     pathLabel: "WLD/USDC Uniswap pool",
     liquidityNote:
-      "Direct WLD/USDC route. This is the cleanest stablecoin route for the internal wallet.",
+      "Direct WLD/USDC route for stablecoin liquidity inside the NuCCa swap screen.",
     uniswapUrl: uniswapSwapUrl(WLD_TOKEN_ADDRESS, USDC_TOKEN_ADDRESS),
   },
   {
@@ -280,12 +280,12 @@ export const SWAP_INTEGRATION_STATUS = {
     ...(NUCCA_SWAP_ROUTER_ADDRESS ? [NUCCA_SWAP_ROUTER_ADDRESS] : []),
   ],
   contractDependencies: [
-    PUF_UNISWAP_V2_ROUTER_WORLDCHAIN,
+    NUCCA_V2_LIQUIDITY_ROUTER_WORLDCHAIN,
     UNISWAP_QUOTER_V2_WORLDCHAIN,
     UNISWAP_SWAP_ROUTER_02_WORLDCHAIN,
     UNISWAP_UNIVERSAL_ROUTER_WORLDCHAIN,
     UNISWAP_UNIVERSAL_ROUTER_211_WORLDCHAIN,
   ],
   note:
-    "The NuCCa UI must not deep-link to another swap app. Real in-app execution requires World Developer Portal allowlisting, quote/slippage protection, Permit2 approval, sendTransaction, and userOp receipt polling.",
+    "The NuCCa UI executes swaps in-app after World Developer Portal allowlisting, quote/slippage protection, Permit2 approval, sendTransaction, and userOp receipt polling.",
 };

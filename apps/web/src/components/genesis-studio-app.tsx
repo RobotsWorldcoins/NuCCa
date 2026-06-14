@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { encodeFunctionData, type Address } from "viem";
+import { createPublicClient, encodeFunctionData, http, type Address } from "viem";
+import { worldchain } from "viem/chains";
 import {
   ArrowLeftRight,
   Bot,
@@ -33,6 +34,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { MiniKit } from "@worldcoin/minikit-js";
+import { useUserOperationReceipt } from "@worldcoin/minikit-react";
 import { MiniKitBoot } from "@/components/mini-kit-boot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +50,8 @@ import {
 } from "@/lib/battle-economy";
 import {
   ECONOMY_SPLIT,
-  PUF_LOCKS,
+  MARKETPLACE_COMMISSION_PERCENT,
+  COMMUNITY_LOCKS,
   TOKEN_FACTS,
   TREASURY_POLICY,
 } from "@/lib/constants";
@@ -63,6 +66,7 @@ import {
   CREATOR_STYLE_ITEMS,
   DISCOVERY_RULES,
   GENESIS_MAP_ZONES,
+  MUSIC_EXPORT_COST_NUCCA,
   MUSIC_GENRES,
   MONTHLY_RANKING_ROWS,
   MONTHLY_RANKING_RULES,
@@ -78,12 +82,10 @@ import {
   type SampleType,
 } from "@/lib/game";
 import {
-  NATIVE_SWAP_EXECUTION_STEPS,
   NUCCA_SWAP_ROUTER_ABI,
   PERMIT2_APPROVE_ABI,
   PERMIT2_WORLDCHAIN,
   SWAP_ROUTES,
-  SWAP_INTEGRATION_STATUS,
   SWAP_TOKEN_DECIMALS,
   decimalToBaseUnits,
   type NativeSwapQuote,
@@ -147,12 +149,17 @@ type MapScanState = {
 };
 
 type TabKey = "home" | "claim" | "music" | "arena" | "ranking" | "clans";
+type PaidSpendKind = "clan_creation" | "map_extra_scan" | "music_export";
 type WorldProfile = {
   username: string | null;
   profilePictureUrl: string | null;
   referralCode: string | null;
 };
 const DEV_MODE_ENABLED = process.env.NODE_ENV !== "production";
+const worldPublicClient = createPublicClient({
+  chain: worldchain,
+  transport: http(worldchain.rpcUrls.default.http[0]),
+});
 
 function initialReferralCodeFromUrl() {
   if (typeof window === "undefined") return "";
@@ -161,7 +168,18 @@ function initialReferralCodeFromUrl() {
   return code ? normalizeReferralCode(code) : "";
 }
 
+function extractUserOpHash(result: unknown) {
+  if (!result || typeof result !== "object" || !("data" in result)) return null;
+  const data = (result as { data?: { userOpHash?: unknown } }).data;
+  return typeof data?.userOpHash === "string" ? data.userOpHash : null;
+}
+
 export function GenesisStudioApp() {
+  const userOperationReceipt = useUserOperationReceipt({
+    client: worldPublicClient,
+    confirmations: 1,
+    timeout: 120_000,
+  });
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     status: "Disconnected",
@@ -186,11 +204,9 @@ export function GenesisStudioApp() {
   const [worldStatus, setWorldStatus] = useState("Not verified");
   const [aiStatus, setAiStatus] = useState("Idle");
   const [creatorUploadStatus, setCreatorUploadStatus] = useState(
-    "Profile image upload is local preview until storage is configured.",
+    "Choose a profile image for your public creator card.",
   );
-  const [marketplaceStatus, setMarketplaceStatus] = useState(
-    "Select an item to prepare a NUCCA purchase.",
-  );
+  const [marketplaceStatus, setMarketplaceStatus] = useState("");
   const [lastMapScan, setLastMapScan] = useState<MapScanState | null>(null);
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -202,6 +218,7 @@ export function GenesisStudioApp() {
     title: string;
     manifestHash: string | null;
     sampleIds: string[];
+    source: "sample-builder" | "ai-song-forge";
   } | null>(null);
   const [selectedBattleMode, setSelectedBattleMode] =
     useState<BattleModeId>("genesis-duel");
@@ -209,11 +226,15 @@ export function GenesisStudioApp() {
     useState<BattleFormatId>("solo-1v1");
   const [customContestNucca, setCustomContestNucca] = useState(1000);
   const [selectedGenre, setSelectedGenre] = useState<MusicGenre>("techno");
+  const [aiSongTitle, setAiSongTitle] = useState("Genesis Battle Anthem");
+  const [aiSongPrompt, setAiSongPrompt] = useState(
+    "Futuristic energetic track with a strong hook, clean beat, and battle arena feeling.",
+  );
   const [selectedSwapRoute, setSelectedSwapRoute] =
     useState<SwapRouteId>("nucca-wld");
   const [swapAmount, setSwapAmount] = useState("1");
   const [swapStatus, setSwapStatus] = useState(
-    "Native swap design ready. Execution unlocks after World allowlisting and router tests.",
+    "Choose a route and get a live quote before swapping.",
   );
   const [swapQuote, setSwapQuote] = useState<NativeSwapQuote | null>(null);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -233,7 +254,7 @@ export function GenesisStudioApp() {
   const [clanFocus, setClanFocus] = useState("Crew 3v3 battles and monthly ranking");
   const [clanLogoPreview, setClanLogoPreview] = useState<string | null>(null);
   const [clanStatus, setClanStatus] = useState(
-    "Create a clan only after the 100,000 NUCCA treasury payment is confirmed.",
+    "Create a clan after the 100,000 NUCCA payment is confirmed.",
   );
 
   const referralCode = useMemo(() => {
@@ -294,11 +315,11 @@ export function GenesisStudioApp() {
     bandReputation,
     rivalBandReputation,
   );
-  const totalVisibleLocked = PUF_LOCKS.reduce(
+  const totalVisibleLocked = COMMUNITY_LOCKS.reduce(
     (total, lock) => total + lock.amountNucca,
     0,
   );
-  const nextLock = PUF_LOCKS.map((lock) => ({
+  const nextLock = COMMUNITY_LOCKS.map((lock) => ({
     ...lock,
     remainingMs: new Date(lock.unlocksAt).getTime() - now.getTime(),
   }))
@@ -512,7 +533,78 @@ export function GenesisStudioApp() {
     );
   }
 
+  async function submitNuccaSpend({
+    kind,
+    label,
+    setStatus,
+    targetId,
+  }: {
+    kind: PaidSpendKind;
+    label: string;
+    setStatus: (value: string) => void;
+    targetId: string;
+  }) {
+    if (!wallet.address) {
+      setStatus("Connect wallet before confirming a NUCCA payment.");
+      return null;
+    }
+
+    if (!MiniKit.isInstalled()) {
+      setStatus("Open NuCCa inside World App to confirm NUCCA payment.");
+      return null;
+    }
+
+    setStatus(`Preparing ${label} payment.`);
+    const response = await fetch("/api/spend/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, targetId }),
+    });
+    const json = await response.json();
+
+    if (!response.ok || !json.ok) {
+      setStatus(json.message ?? `${label} checkout unavailable.`);
+      return null;
+    }
+
+    const result = await MiniKit.sendTransaction({
+      chainId: json.checkout.chainId,
+      transactions: json.checkout.transactions,
+    });
+    const userOpHash = extractUserOpHash(result);
+
+    if (!userOpHash) {
+      setStatus(`${label} payment was not submitted.`);
+      return null;
+    }
+
+    setStatus(`${label} submitted. Waiting for confirmation.`);
+
+    try {
+      const receipt = await userOperationReceipt.poll(userOpHash);
+      setStatus(`${label} confirmed: ${shortAddress(receipt.transactionHash)}`);
+      return receipt.transactionHash;
+    } catch {
+      setStatus(
+        `${label} submitted but receipt confirmation is still pending. Try again after World App confirms it.`,
+      );
+      return null;
+    }
+  }
+
   async function scanGenesisMap(paid: boolean) {
+    let paymentReference: `0x${string}` | null = null;
+    if (paid) {
+      paymentReference = await submitNuccaSpend({
+        kind: "map_extra_scan",
+        label: "Extra scan",
+        setStatus: setMapStatus,
+        targetId: selectedZone.id,
+      });
+
+      if (!paymentReference) return;
+    }
+
     setMapStatus(
       paid
         ? `Scanning extra route for ${DAILY_REWARD_POLICY.paidMapScanCostNucca} NUCCA`
@@ -521,7 +613,7 @@ export function GenesisStudioApp() {
     const response = await fetch("/api/map/scan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ zoneId: selectedZone.id, paid }),
+      body: JSON.stringify({ zoneId: selectedZone.id, paid, paymentReference }),
     });
     const json = await response.json();
 
@@ -585,11 +677,70 @@ export function GenesisStudioApp() {
       title: composition.title ?? "Genesis Battle Loop",
       manifestHash,
       sampleIds,
+      source: "sample-builder",
     });
     setBuilderStatus(
       manifestHash
         ? `Ranked hash ${manifestHash.slice(0, 10)}...`
         : "Ranked composition created",
+    );
+  }
+
+  async function createAiSongTrack() {
+    if (aiSongPrompt.trim().length < 8) {
+      setBuilderStatus("Write a stronger prompt first");
+      return;
+    }
+
+    setBuilderStatus("Queueing AI Song Forge");
+    const aiResponse = await fetch("/api/ai/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        generatorId: "beats-ace-step",
+        prompt: `${currentGenre.label}: ${aiSongPrompt}`,
+      }),
+    });
+    const aiJson = await aiResponse.json();
+    if (!aiResponse.ok || !aiJson.ok) {
+      setBuilderStatus(aiJson.message ?? "AI queue unavailable");
+      return;
+    }
+
+    setBuilderStatus("Writing in-app music manifest");
+    const response = await fetch("/api/music/compositions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: aiSongTitle,
+        sampleIds: [],
+        source: "ai-song-forge",
+        prompt: aiSongPrompt,
+        genre: currentGenre.label,
+        aiModel: "ACE-Step 1.5 free worker",
+        arrangement: "prompt:intro|verse|hook|drop|outro",
+      }),
+    });
+    const json = await response.json();
+    if (!json.ok) {
+      setBuilderStatus(json.message);
+      return;
+    }
+
+    const composition = json.composition;
+    const manifestHash = composition.manifestHash ?? composition.manifest_hash ?? null;
+    setLastCompositionId(composition.id);
+    setBuiltTrack({
+      id: composition.id,
+      title: composition.title ?? aiSongTitle,
+      manifestHash,
+      sampleIds: [],
+      source: "ai-song-forge",
+    });
+    setBuilderStatus(
+      manifestHash
+        ? `AI track queued and ranked: ${manifestHash.slice(0, 10)}...`
+        : "AI track queued and ranked",
     );
   }
 
@@ -664,7 +815,16 @@ export function GenesisStudioApp() {
   }
 
   async function createClan() {
-    setClanStatus("Preparing clan creation");
+    const paymentTxHash = await submitNuccaSpend({
+      kind: "clan_creation",
+      label: "Clan creation",
+      setStatus: setClanStatus,
+      targetId: clanName,
+    });
+
+    if (!paymentTxHash) return;
+
+    setClanStatus("Creating clan after confirmed NUCCA payment");
     const response = await fetch("/api/clans/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -672,6 +832,7 @@ export function GenesisStudioApp() {
         name: clanName,
         style: clanStyle,
         focus: clanFocus,
+        paymentTxHash,
       }),
     });
     const json = await response.json();
@@ -688,7 +849,7 @@ export function GenesisStudioApp() {
     const previewUrl = URL.createObjectURL(file);
     setClanLogoPreview(previewUrl);
     setClanStatus(
-      "Logo preview ready. Production upload should store this in Supabase Storage or R2 before clan creation.",
+      "Logo preview ready. It will be saved with the clan after payment confirmation.",
     );
   }
 
@@ -700,21 +861,68 @@ export function GenesisStudioApp() {
     }
 
     setCreatorUploadStatus(
-      `${file.name} selected. Production upload requires Supabase Storage/R2 before this becomes persistent.`,
+      `${file.name} selected for your creator card.`,
     );
   }
 
-  function prepareMarketplacePurchase(
+  async function buyMarketplaceItem(
     listing: (typeof CREATOR_MARKETPLACE_LISTINGS)[number],
   ) {
     if (!wallet.address) {
-      setMarketplaceStatus("Connect WalletAuth before preparing an item purchase.");
+      setMarketplaceStatus("Connect WalletAuth before buying an item.");
       return;
     }
 
-    setMarketplaceStatus(
-      `${listing.itemName} prepared for ${formatNucca(listing.priceNucca)} NUCCA. Final settlement needs NuccaSpendRouter allowlisting before purchase execution.`,
-    );
+    if (!MiniKit.isInstalled()) {
+      setMarketplaceStatus("Open NuCCa inside World App to confirm item purchases.");
+      return;
+    }
+
+    setMarketplaceStatus(`Preparing ${listing.itemName} checkout.`);
+    try {
+      const response = await fetch("/api/marketplace/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: listing.id }),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) {
+        throw new Error(json.message ?? "Marketplace checkout unavailable.");
+      }
+
+      const result = await MiniKit.sendTransaction({
+        chainId: json.checkout.chainId,
+        transactions: json.checkout.transactions,
+      });
+
+      const userOpHash = extractUserOpHash(result);
+      if (!userOpHash) {
+        setMarketplaceStatus("Item purchase was not submitted.");
+        return;
+      }
+
+      setMarketplaceStatus(`${listing.itemName} submitted. Waiting for confirmation.`);
+      const receipt = await userOperationReceipt.poll(userOpHash);
+      setMarketplaceStatus(`${listing.itemName} confirmed. Adding to inventory.`);
+      const settleResponse = await fetch("/api/marketplace/settle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          transactionHash: receipt.transactionHash,
+        }),
+      });
+      const settleJson = await settleResponse.json();
+      setMarketplaceStatus(
+        settleJson.ok
+          ? `${listing.itemName} added to inventory: ${shortAddress(receipt.transactionHash)}`
+          : settleJson.message ?? "Item confirmed, inventory settlement pending.",
+      );
+    } catch (error) {
+      setMarketplaceStatus(
+        error instanceof Error ? error.message : "Item purchase failed.",
+      );
+    }
   }
 
   async function quoteSwap() {
@@ -743,8 +951,8 @@ export function GenesisStudioApp() {
       setSwapQuote(json.quote);
       setSwapStatus(
         json.quote.executable
-          ? "Quote ready. Execute inside World App when route and minimum received look correct."
-          : "Quote ready. Router deployment address is missing, so execution is still blocked.",
+          ? "Quote ready. Confirm inside World App when the minimum received looks correct."
+          : "Quote ready. Swaps are not live yet.",
       );
     } catch (error) {
       setSwapQuote(null);
@@ -761,7 +969,7 @@ export function GenesisStudioApp() {
     }
 
     if (!swapQuote.routerAddress) {
-      setSwapStatus("NuCCaSwapRouter is not deployed/configured yet.");
+      setSwapStatus("Swaps are not live yet.");
       return;
     }
 
@@ -772,7 +980,7 @@ export function GenesisStudioApp() {
 
     try {
       setSwapLoading(true);
-      setSwapStatus("Opening World App transaction permission sheet.");
+      setSwapStatus("Opening World App confirmation.");
       const amountIn = BigInt(swapQuote.amountIn);
       const amountOutMinimum = BigInt(swapQuote.amountOutMinimum);
       const routerAddress = swapQuote.routerAddress as Address;
@@ -856,11 +1064,15 @@ export function GenesisStudioApp() {
         ],
       });
 
-      if ("data" in result && result.data && "userOpHash" in result.data) {
-        setSwapStatus(`Swap submitted. userOp: ${shortAddress(result.data.userOpHash)}`);
-      } else {
+      const userOpHash = extractUserOpHash(result);
+      if (!userOpHash) {
         setSwapStatus("Swap was not submitted.");
+        return;
       }
+
+      setSwapStatus("Swap submitted. Waiting for confirmation.");
+      const receipt = await userOperationReceipt.poll(userOpHash);
+      setSwapStatus(`Swap confirmed: ${shortAddress(receipt.transactionHash)}`);
     } catch (error) {
       setSwapStatus(error instanceof Error ? error.message : "Swap transaction failed.");
     } finally {
@@ -951,7 +1163,7 @@ export function GenesisStudioApp() {
             <Metric
               label="Locked"
               onClick={() => setLockModalOpen(true)}
-              value={`${TOKEN_FACTS.pufLockedPercent}%`}
+              value={`${TOKEN_FACTS.lockedPercent}%`}
             />
             <Metric label="Burned" value={`${chain?.burnedPercent?.toFixed(2) ?? TOKEN_FACTS.burnedPercent}%`} />
           </div>
@@ -971,7 +1183,7 @@ export function GenesisStudioApp() {
                 </button>
                 <div className="text-center">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
-                    PUF Wallet
+                    Community Lock
                   </p>
                   <h2 className="text-xl font-black">My Locks</h2>
                 </div>
@@ -980,7 +1192,7 @@ export function GenesisStudioApp() {
               <div className="mt-6 grid grid-cols-3 gap-2 text-center">
                 <DarkMetric label="Locked" value="6" />
                 <DarkMetric label="Visible" value={`${formatNucca(totalVisibleLocked / 1_000_000)}M`} />
-                <DarkMetric label="Reported" value={`${TOKEN_FACTS.pufLockedPercent}%`} />
+                <DarkMetric label="Reported" value={`${TOKEN_FACTS.lockedPercent}%`} />
               </div>
               <div className="mt-4 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4">
                 <div className="flex items-center gap-2 text-emerald-300">
@@ -999,7 +1211,7 @@ export function GenesisStudioApp() {
                 </p>
               </div>
               <div className="mt-5 grid gap-4">
-                {PUF_LOCKS.map((lock) => {
+                {COMMUNITY_LOCKS.map((lock) => {
                   const remainingMs = new Date(lock.unlocksAt).getTime() - now.getTime();
                   return (
                     <div className="flex items-center justify-between gap-4" key={lock.id}>
@@ -1034,7 +1246,7 @@ export function GenesisStudioApp() {
                 })}
               </div>
               <p className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs font-medium leading-5 text-white/55">
-                These values are manually mirrored from the PUF Wallet screenshot for community transparency. On-chain lock reading should replace this before using it as an audit source.
+                Community lock schedule shown for transparency. Each lock keeps the long-term supply story visible to players.
               </p>
             </div>
           </div>
@@ -1081,8 +1293,8 @@ export function GenesisStudioApp() {
             <IconBubble icon={<ImageIcon size={20} />} />
           </div>
           <div className="mt-4 grid gap-3 rounded-3xl border border-line bg-white/60 p-3">
-            <div className="grid grid-cols-[1fr_7rem] gap-3">
-              <div className="relative min-h-52 overflow-hidden rounded-[28px] border border-line bg-gradient-to-b from-white via-cyan-50 to-orange-50">
+            <div className="grid gap-3">
+              <div className="relative min-h-[22rem] overflow-hidden rounded-[28px] border border-line bg-gradient-to-b from-white via-cyan-50 to-orange-50">
                 <div className="absolute inset-x-8 top-8 h-20 rounded-full bg-cyan-200/50 blur-2xl" />
                 <div className="absolute inset-x-12 bottom-8 h-16 rounded-full bg-orange-200/60 blur-2xl" />
                 <NuccaPerformer genre={selectedGenre} />
@@ -1090,7 +1302,7 @@ export function GenesisStudioApp() {
                   {currentGenre.label} performer
                 </div>
               </div>
-              <div className="grid gap-2">
+              <div className="grid grid-cols-[5rem_1fr] items-center gap-3">
                 <div className="relative overflow-hidden rounded-3xl border-4 border-white bg-white shadow-xl shadow-orange-200/60">
                   <Image
                     alt="Creator profile image"
@@ -1101,15 +1313,21 @@ export function GenesisStudioApp() {
                     width={160}
                   />
                 </div>
-                <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-white/70 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:bg-white">
-                  Upload
-                  <input
-                    accept="image/*"
-                    className="sr-only"
-                    onChange={(event) => selectCreatorImage(event.target.files?.[0] ?? null)}
-                    type="file"
-                  />
-                </label>
+                <div>
+                  <p className="text-sm font-black">Creator image</p>
+                  <p className="mt-1 text-xs leading-5 text-muted">
+                    Used for profile cards. The performer stays as the game character.
+                  </p>
+                  <label className="mt-2 inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-white/70 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:bg-white">
+                    Upload
+                    <input
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={(event) => selectCreatorImage(event.target.files?.[0] ?? null)}
+                      type="file"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
             <p className="rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
@@ -1136,7 +1354,7 @@ export function GenesisStudioApp() {
                 ))}
               </div>
               <p className="mt-2 text-xs leading-5 text-muted">
-                {currentGenre.mood}. Built as lightweight layered animation for mobile; true 3D only after optimized assets.
+                {currentGenre.mood}. Outfits, accessories, and equipment raise reputation and battle power.
               </p>
             </div>
           </div>
@@ -1184,13 +1402,89 @@ export function GenesisStudioApp() {
         <Card className="holo-border">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <CardTitle>Music Builder</CardTitle>
+              <CardTitle>AI Song Forge</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                Ranked songs are made from approved samples and saved with an in-app manifest hash.
+                Prompt a track, queue free compute, and save an in-app manifest for battles.
               </p>
             </div>
             <IconBubble icon={<Headphones size={20} />} />
           </div>
+
+          <div className="mt-4 grid gap-3 rounded-3xl border border-line bg-white/62 p-3">
+            <label className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Track title
+              <input
+                className="mt-2 w-full rounded-2xl border border-line bg-white/80 px-4 py-3 text-sm font-bold normal-case tracking-normal text-foreground outline-none"
+                onChange={(event) => setAiSongTitle(event.target.value)}
+                value={aiSongTitle}
+              />
+            </label>
+            <label className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Prompt
+              <textarea
+                className="mt-2 min-h-28 w-full resize-none rounded-2xl border border-line bg-white/80 px-4 py-3 text-sm font-bold normal-case tracking-normal text-foreground outline-none"
+                onChange={(event) => setAiSongPrompt(event.target.value)}
+                value={aiSongPrompt}
+              />
+            </label>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <Metric label="Genre" value={currentGenre.label} />
+              <Metric label="Model" value="ACE-Step" />
+              <Metric label="Mode" value="Queued" />
+            </div>
+            <Button onClick={createAiSongTrack}>
+              Create in-app AI track
+            </Button>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-line bg-white/60 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Battle provenance
+            </p>
+            <p className="mt-1 text-sm font-bold text-muted">{builderStatus}</p>
+            {builtTrack ? (
+              <div className="mt-3 rounded-2xl border border-white bg-white/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black">{builtTrack.title}</p>
+                    <p className="mt-1 font-mono text-[11px] text-muted">
+                      ID: {builtTrack.id.slice(0, 14)}...
+                    </p>
+                    <p className="mt-1 font-mono text-[11px] text-muted">
+                      Hash: {builtTrack.manifestHash?.slice(0, 18) ?? "pending"}...
+                    </p>
+                  </div>
+                  <Badge className="border-orange-200 bg-orange-50 text-[10px] text-accent">
+                    {builtTrack.source === "ai-song-forge" ? "AI forge" : "sample build"}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs font-bold text-accent">
+                  This is the track used when you open a battle in Arena.
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-line bg-white/60 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Export rule
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              MP3/WAV export will cost {formatNucca(MUSIC_EXPORT_COST_NUCCA)} NUCCA
+              after the audio render is available. The app must not charge export
+              before there is a generated file to download.
+            </p>
+          </div>
+
+          <div className="mt-5 border-t border-line pt-4">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
+              Sample fallback
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              If free AI capacity is sleeping or full, build a ranked loop from approved in-app samples.
+            </p>
+          </div>
+
           <div className="mt-4 grid grid-cols-5 gap-2 text-center">
             {(Object.keys(SAMPLE_TYPE_LABELS) as SampleType[]).map((type) => (
               <button
@@ -1261,28 +1555,8 @@ export function GenesisStudioApp() {
               );
             })}
           </div>
-          <div className="mt-4 rounded-2xl border border-line bg-white/60 p-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-accent">
-              Provenance status
-            </p>
-            <p className="mt-1 text-sm font-bold text-muted">{builderStatus}</p>
-            {builtTrack ? (
-              <div className="mt-3 rounded-2xl border border-white bg-white/70 p-3">
-                <p className="text-sm font-black">{builtTrack.title}</p>
-                <p className="mt-1 font-mono text-[11px] text-muted">
-                  ID: {builtTrack.id.slice(0, 14)}...
-                </p>
-                <p className="mt-1 font-mono text-[11px] text-muted">
-                  Hash: {builtTrack.manifestHash?.slice(0, 18) ?? "pending"}...
-                </p>
-                <p className="mt-2 text-xs font-bold text-accent">
-                  This is the track used when you open a battle in Arena.
-                </p>
-              </div>
-            ) : null}
-          </div>
           <Button className="mt-4 w-full" onClick={createBuilderTrack}>
-            Build Ranked Track
+            Build sample fallback track
           </Button>
         </Card>
         ) : null}
@@ -1294,7 +1568,7 @@ export function GenesisStudioApp() {
             <div>
               <CardTitle>Create Clan</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                Clan ownership costs 100,000 NUCCA and is paid to the admin treasury.
+                Clan ownership costs 100,000 NUCCA and creates a three-member music crew.
               </p>
             </div>
             <IconBubble icon={<LockKeyhole size={20} />} />
@@ -1436,7 +1710,7 @@ export function GenesisStudioApp() {
             <div>
               <CardTitle>Battle Arena</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                In-app tracks enter solo or 3v3 skill battles with admin commission and monthly ranking reserve.
+                In-app tracks enter solo or 3v3 skill battles with platform commission and monthly ranking reserve.
               </p>
             </div>
             <IconBubble icon={<Swords size={20} />} />
@@ -1549,12 +1823,12 @@ export function GenesisStudioApp() {
               ))}
             </div>
             <p className="mt-2 text-xs text-muted">
-              No max cap. Each creator pays the same entry. Bigger pools increase admin commission and monthly prizes.
+              No max cap. Each creator pays the same entry. Bigger pools increase platform commission and monthly prizes.
             </p>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Metric label="Creator prize" value={`${currentBattleSplit.creatorPrize}`} />
-            <Metric label="Admin" value={`${currentBattleSplit.platformCommission}`} />
+            <Metric label="Platform" value={`${currentBattleSplit.platformCommission}`} />
             <Metric label="Monthly" value={`${currentBattleSplit.monthlyLeagueReserve}`} />
           </div>
           <div className="mt-4 grid gap-2">
@@ -1753,10 +2027,10 @@ export function GenesisStudioApp() {
             <div className="relative mt-5 rounded-[28px] border border-white/10 bg-white/[0.07] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.13)]">
               <p className="text-xs font-bold text-white/50">Connected account</p>
               <p className="mt-1 font-mono text-2xl font-black">
-                {wallet.address ? shortAddress(wallet.address) : "WalletAuth required"}
+                {wallet.address ? shortAddress(wallet.address) : "Connect wallet"}
               </p>
               <p className="mt-2 text-xs font-medium leading-5 text-white/55">
-                Internal WorldChain swap surface. No PUF, no external swap app, no hidden redirect.
+                Swap NUCCA, WLD, and USDC without leaving the app.
               </p>
             </div>
             <div className="relative mt-4 grid grid-cols-3 gap-2">
@@ -1775,7 +2049,7 @@ export function GenesisStudioApp() {
                   onClick={() =>
                     action.enabled
                       ? quoteSwap()
-                      : setSwapStatus(`${action.label} is a wallet module placeholder. Swap is the active module now.`)
+                      : setSwapStatus(`${action.label} is coming later. Swap is available now.`)
                   }
                   type="button"
                 >
@@ -1789,9 +2063,9 @@ export function GenesisStudioApp() {
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <CardTitle>Native Swap Engine</CardTitle>
+                <CardTitle>NuCCa Swap</CardTitle>
                 <p className="mt-1 text-sm text-muted">
-                  Same wallet-style flow, NuCCa colors, real WorldChain route logic.
+                  Quote first, check minimum received, then confirm in World App.
                 </p>
               </div>
               <IconBubble icon={<ArrowLeftRight size={20} />} />
@@ -1866,7 +2140,7 @@ export function GenesisStudioApp() {
               </p>
               <p className="mt-1 text-sm font-black">{currentSwapRoute.pathLabel}</p>
               <p className="mt-1 text-xs leading-5 text-muted">
-                {currentSwapRoute.liquidityNote}
+                Price and minimum received update from live World Chain liquidity.
               </p>
             </div>
 
@@ -1933,7 +2207,7 @@ export function GenesisStudioApp() {
                   disabled={swapLoading || !swapQuote.executable}
                   onClick={executeSwap}
                 >
-                  {swapQuote.executable ? "Execute in World App" : "Deploy router first"}
+                  {swapQuote.executable ? "Confirm swap" : "Swap not live yet"}
                 </Button>
               </div>
             ) : null}
@@ -1942,7 +2216,7 @@ export function GenesisStudioApp() {
               {swapStatus}
             </p>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid gap-2">
               <a
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-line bg-white/78 px-3 py-3 text-sm font-black text-foreground shadow-sm"
                 href={currentSwapRoute.dexscreenerUrl ?? currentSwapRoute.uniswapUrl}
@@ -1951,23 +2225,6 @@ export function GenesisStudioApp() {
               >
                 Route chart <ExternalLink size={15} />
               </a>
-              <div className="inline-flex items-center justify-center rounded-2xl border border-line bg-white/68 px-3 py-3 text-center text-xs font-black text-muted">
-                {SWAP_INTEGRATION_STATUS.requiredAllowlist.length} allowlist entries
-              </div>
-            </div>
-
-            <div className="mt-3 rounded-2xl border border-accent/20 bg-orange-50/80 p-3">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-warning">
-                Real internal swap path
-              </p>
-              <div className="mt-2 grid gap-2">
-                {NATIVE_SWAP_EXECUTION_STEPS.map((step, index) => (
-                  <div className="flex gap-2 text-xs font-medium leading-5 text-warning" key={step}>
-                    <span className="font-mono font-black">{index + 1}</span>
-                    <span>{step}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </Card>
@@ -1977,10 +2234,15 @@ export function GenesisStudioApp() {
             <div>
               <CardTitle>Creator Marketplace</CardTitle>
               <p className="mt-1 text-sm text-muted">
-                Trade RPG music gear in NUCCA. Items change creator stats, battle pressure, music quality, and ranking power.
+                Buy RPG music gear only with NUCCA. Every item changes stats, reputation, and battle power.
               </p>
             </div>
             <IconBubble icon={<ShoppingBag size={20} />} />
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <Metric label="Token" value="NUCCA" />
+            <Metric label="Resale fee" value={`${MARKETPLACE_COMMISSION_PERCENT}%`} />
+            <Metric label="Settlement" value="World App" />
           </div>
           <div className="mt-4 grid gap-2">
             {CREATOR_MARKETPLACE_LISTINGS.map((listing) => (
@@ -1992,7 +2254,7 @@ export function GenesisStudioApp() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black">{listing.itemName}</p>
                       <p className="text-xs text-muted">
-                        {listing.itemType} / {listing.seller}
+                        {listing.itemType} / {listing.saleKind === "official_item" ? "official drop" : listing.seller}
                       </p>
                     </div>
                     <div className="text-right">
@@ -2014,18 +2276,20 @@ export function GenesisStudioApp() {
                   </p>
                   <Button
                     className="mt-3 w-full"
-                    onClick={() => prepareMarketplacePurchase(listing)}
+                    onClick={() => buyMarketplaceItem(listing)}
                     size="sm"
                     variant="secondary"
                   >
-                    Prepare purchase
+                    Buy with NUCCA
                   </Button>
                 </div>
               ))}
           </div>
-          <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
-            {marketplaceStatus}
-          </p>
+          {marketplaceStatus ? (
+            <p className="mt-3 rounded-2xl border border-line bg-white/60 p-3 text-xs font-bold text-muted">
+              {marketplaceStatus}
+            </p>
+          ) : null}
         </Card>
 
         <Card className="holo-border">
@@ -2340,13 +2604,14 @@ export function GenesisStudioApp() {
 }
 
 function NuccaPerformer({ genre }: { genre: MusicGenre }) {
-  const palette: Record<MusicGenre, { jacket: string; pants: string; aura: string; accent: string; trim: string }> = {
+  const palette: Record<MusicGenre, { jacket: string; pants: string; aura: string; accent: string; trim: string; hair: string }> = {
     rock: {
       jacket: "from-slate-950 to-zinc-700",
       pants: "bg-slate-950",
       aura: "bg-orange-300/50",
       accent: "bg-orange-500",
       trim: "border-orange-300",
+      hair: "from-slate-950 to-slate-700",
     },
     pop: {
       jacket: "from-pink-400 to-orange-300",
@@ -2354,6 +2619,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-pink-200/60",
       accent: "bg-pink-500",
       trim: "border-pink-300",
+      hair: "from-amber-800 to-yellow-500",
     },
     techno: {
       jacket: "from-cyan-500 to-slate-900",
@@ -2361,6 +2627,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-cyan-300/60",
       accent: "bg-cyan-400",
       trim: "border-cyan-300",
+      hair: "from-slate-950 to-cyan-900",
     },
     commercial: {
       jacket: "from-white to-slate-300",
@@ -2368,6 +2635,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-slate-200/70",
       accent: "bg-slate-400",
       trim: "border-slate-300",
+      hair: "from-stone-900 to-stone-600",
     },
     classical: {
       jacket: "from-slate-950 to-amber-800",
@@ -2375,6 +2643,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-amber-200/60",
       accent: "bg-amber-500",
       trim: "border-amber-300",
+      hair: "from-stone-950 to-stone-700",
     },
     gospel: {
       jacket: "from-white to-yellow-200",
@@ -2382,6 +2651,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-yellow-200/70",
       accent: "bg-yellow-500",
       trim: "border-yellow-300",
+      hair: "from-stone-950 to-stone-700",
     },
     oriental: {
       jacket: "from-red-600 to-yellow-500",
@@ -2389,6 +2659,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-red-200/60",
       accent: "bg-red-500",
       trim: "border-red-300",
+      hair: "from-slate-950 to-red-950",
     },
     trap: {
       jacket: "from-slate-950 to-purple-900",
@@ -2396,6 +2667,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-purple-300/50",
       accent: "bg-purple-500",
       trim: "border-purple-300",
+      hair: "from-slate-950 to-purple-950",
     },
     latin: {
       jacket: "from-orange-500 to-red-500",
@@ -2403,6 +2675,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-orange-200/70",
       accent: "bg-red-500",
       trim: "border-orange-300",
+      hair: "from-stone-950 to-stone-700",
     },
     afrobeat: {
       jacket: "from-emerald-500 to-yellow-500",
@@ -2410,6 +2683,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-emerald-200/70",
       accent: "bg-emerald-500",
       trim: "border-emerald-300",
+      hair: "from-slate-950 to-emerald-950",
     },
     jazz: {
       jacket: "from-slate-900 to-yellow-900",
@@ -2417,6 +2691,7 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-yellow-200/50",
       accent: "bg-yellow-600",
       trim: "border-yellow-300",
+      hair: "from-stone-950 to-stone-700",
     },
     reggaeton: {
       jacket: "from-fuchsia-500 to-cyan-400",
@@ -2424,36 +2699,33 @@ function NuccaPerformer({ genre }: { genre: MusicGenre }) {
       aura: "bg-fuchsia-200/60",
       accent: "bg-fuchsia-500",
       trim: "border-fuchsia-300",
+      hair: "from-slate-950 to-fuchsia-950",
     },
   };
   const style = palette[genre];
 
   return (
-    <div className="performer-dance absolute inset-0 flex items-center justify-center pt-4">
-      <div className={`absolute h-44 w-44 rounded-full blur-2xl ${style.aura}`} />
-      <div className="absolute bottom-8 h-12 w-44 rounded-full bg-slate-950/10 blur-md" />
-      <div className="relative h-52 w-36 [filter:drop-shadow(0_24px_30px_rgba(15,23,42,0.22))]">
-        <div className={`absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 overflow-hidden rounded-full border-4 bg-white shadow-xl ${style.trim}`}>
-          <Image
-            alt="NuCCa human avatar face"
-            className="object-cover"
-            fill
-            sizes="80px"
-            src="/brand/nucca-token.jpeg"
-          />
-        </div>
-        <div className="absolute left-1/2 top-[4.35rem] h-5 w-10 -translate-x-1/2 rounded-b-full bg-orange-200" />
-        <div className={`absolute left-1/2 top-[5.1rem] h-24 w-28 -translate-x-1/2 rounded-t-[42px] rounded-b-3xl border border-white/50 bg-gradient-to-br ${style.jacket}`} />
-        <div className="absolute left-7 top-[5.9rem] h-16 w-6 -rotate-[18deg] rounded-full bg-gradient-to-b from-orange-100 to-orange-200 shadow-md" />
-        <div className="absolute right-7 top-[5.9rem] h-16 w-6 rotate-[18deg] rounded-full bg-gradient-to-b from-orange-100 to-orange-200 shadow-md" />
-        <div className={`absolute left-1/2 top-[6.6rem] h-4 w-20 -translate-x-1/2 rounded-full ${style.accent} shadow-lg`} />
-        <div className="absolute left-1/2 top-[8.15rem] h-8 w-14 -translate-x-1/2 rounded-b-3xl bg-white/70" />
-        <div className={`absolute bottom-7 left-10 h-16 w-6 rounded-full ${style.pants} shadow-lg`} />
-        <div className={`absolute bottom-7 right-10 h-16 w-6 rounded-full ${style.pants} shadow-lg`} />
-        <div className="absolute bottom-4 left-7 h-5 w-12 -rotate-6 rounded-full bg-white shadow-md" />
-        <div className="absolute bottom-4 right-7 h-5 w-12 rotate-6 rounded-full bg-white shadow-md" />
-        <div className={`absolute left-1/2 top-[1.8rem] h-4 w-16 -translate-x-1/2 rounded-full ${style.accent} opacity-80 mix-blend-screen`} />
-        <div className="absolute left-1/2 top-[3.1rem] h-2 w-14 -translate-x-1/2 rounded-full bg-slate-950/75" />
+    <div className="performer-dance absolute inset-0 flex items-center justify-center px-4 pb-8 pt-5">
+      <div className={`absolute top-8 h-60 w-60 rounded-full blur-3xl ${style.aura}`} />
+      <div className="absolute bottom-8 h-12 w-56 rounded-full bg-slate-950/10 blur-md" />
+      <div className="relative h-[19.5rem] w-[13.5rem] [filter:drop-shadow(0_24px_30px_rgba(15,23,42,0.22))]">
+        <div className="absolute left-1/2 top-1 h-24 w-24 -translate-x-1/2 rounded-[2.2rem] bg-gradient-to-b from-orange-100 to-orange-200 shadow-[inset_0_-10px_18px_rgba(120,53,15,0.13),0_14px_30px_rgba(15,23,42,0.18)]" />
+        <div className={`absolute left-1/2 top-0 h-12 w-28 -translate-x-1/2 rounded-t-[2.6rem] rounded-b-[1.5rem] bg-gradient-to-br ${style.hair} shadow-lg`} />
+        <div className={`absolute left-[3.65rem] top-[2.05rem] h-5 w-8 rounded-full ${style.accent} opacity-85 shadow-[0_0_16px_rgba(255,255,255,0.8)]`} />
+        <div className={`absolute right-[3.65rem] top-[2.05rem] h-5 w-8 rounded-full ${style.accent} opacity-85 shadow-[0_0_16px_rgba(255,255,255,0.8)]`} />
+        <div className="absolute left-1/2 top-[3.65rem] h-2 w-10 -translate-x-1/2 rounded-full bg-slate-950/70" />
+        <div className="absolute left-1/2 top-[5.55rem] h-8 w-10 -translate-x-1/2 rounded-b-2xl bg-orange-200 shadow-inner" />
+        <div className={`absolute left-1/2 top-[6.15rem] h-28 w-32 -translate-x-1/2 rounded-t-[3rem] rounded-b-[2rem] border border-white/60 bg-gradient-to-br ${style.jacket} shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]`} />
+        <div className={`absolute left-1/2 top-[7.3rem] h-5 w-24 -translate-x-1/2 rounded-full ${style.accent} shadow-lg`} />
+        <div className="absolute left-[2.1rem] top-[7.05rem] h-24 w-7 -rotate-[17deg] rounded-full bg-gradient-to-b from-orange-100 to-orange-200 shadow-lg" />
+        <div className="absolute right-[2.1rem] top-[7.05rem] h-24 w-7 rotate-[17deg] rounded-full bg-gradient-to-b from-orange-100 to-orange-200 shadow-lg" />
+        <div className={`absolute left-1/2 top-[11.25rem] h-8 w-20 -translate-x-1/2 rounded-b-[1.5rem] bg-gradient-to-b ${style.jacket}`} />
+        <div className={`absolute bottom-9 left-[4.35rem] h-[5.8rem] w-8 rounded-b-3xl rounded-t-lg ${style.pants} shadow-lg`} />
+        <div className={`absolute bottom-9 right-[4.35rem] h-[5.8rem] w-8 rounded-b-3xl rounded-t-lg ${style.pants} shadow-lg`} />
+        <div className="absolute bottom-5 left-[3.2rem] h-6 w-14 -rotate-6 rounded-full bg-white shadow-lg" />
+        <div className="absolute bottom-5 right-[3.2rem] h-6 w-14 rotate-6 rounded-full bg-white shadow-lg" />
+        <div className={`absolute left-1/2 top-[0.55rem] h-28 w-28 -translate-x-1/2 rounded-full border-2 ${style.trim} opacity-50`} />
+        <div className="absolute left-1/2 top-[14.7rem] h-2 w-28 -translate-x-1/2 rounded-full bg-white/70" />
       </div>
     </div>
   );

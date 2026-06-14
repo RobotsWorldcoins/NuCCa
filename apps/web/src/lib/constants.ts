@@ -23,10 +23,14 @@ export const UNISWAP_V3_FACTORY_WORLDCHAIN =
   "0x7a5028BDa40e7B173C278C5342087826455ea25a";
 export const UNISWAP_V2_FACTORY_WORLDCHAIN =
   "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f";
-export const PUF_UNISWAP_V2_ROUTER_WORLDCHAIN =
+export const NUCCA_V2_LIQUIDITY_ROUTER_WORLDCHAIN =
   "0x541aB7c31A119441eF3575F6973277DE0eF460bd";
 export const NUCCA_SWAP_ROUTER_ADDRESS =
   process.env.NEXT_PUBLIC_NUCCA_SWAP_ROUTER_ADDRESS ?? "";
+export const NUCCA_SPEND_ROUTER_ADDRESS =
+  process.env.NUCCA_SPEND_ROUTER_ADDRESS ??
+  process.env.NEXT_PUBLIC_NUCCA_SPEND_ROUTER_ADDRESS ??
+  "";
 
 export const TOKEN_FACTS = {
   name: "NUCCA",
@@ -34,14 +38,14 @@ export const TOKEN_FACTS = {
   burnedPercent: 6,
   holders: 42_000,
   patilopesBalance: 3_500_000,
-  pufLockedPercent: 37.5,
-  pufVisibleLocked: 23_500_000,
+  lockedPercent: 37.5,
+  visibleLocked: 23_500_000,
   originalSupply: 100_000_000,
 };
 
 export const DEAD_WALLET_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 
-export const PUF_LOCKS = [
+export const COMMUNITY_LOCKS = [
   {
     id: "puf-lock-2026-06-13",
     amountNucca: 5_000_000,
